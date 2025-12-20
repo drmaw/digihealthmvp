@@ -1,4 +1,5 @@
 // firebase.js
+// COMPAT MODE — REQUIRED FOR THIS PROJECT
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
@@ -9,7 +10,5 @@ const firebaseConfig = {
   appId: "1:704628949252:web:b38a476bd9c4259f829051"
 };
 
-// Initialize Firebase (COMPAT MODE)
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-
-
