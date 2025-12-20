@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>প্রতিষ্ঠান ব্যবস্থাপনা</title>
+</head>
+<body>
+
+<h2>প্রতিষ্ঠান ব্যবস্থাপনা</h2>
+
+<input id="orgName" placeholder="প্রতিষ্ঠানের নাম" />
+<button id="addOrg">যোগ করুন</button>
+
+<ul id="orgList"></ul>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+    authDomain: "digihealth-65f04.firebaseapp.com",
+    projectId: "digihealth-65f04",
+    storageBucket: "digihealth-65f04.appspot.com",
+    messagingSenderId: "704628949252",
+    appId: "1:704628949252:web:b38a476bd9c4259f829051"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const list = document.getElementById("orgList");
+
+  async function load() {
+    list.innerHTML = "";
+    const snap = await getDocs(collection(db, "organizations"));
+    snap.forEach(d => {
+      const li = document.createElement("li");
+      li.innerText = d.data().name;
+      list.appendChild(li);
+    });
+  }
+
+  document.getElementById("addOrg").onclick = async () => {
+    const name = document.getElementById("orgName").value;
+    if (!name) return;
+    await addDoc(collection(db, "organizations"), {
+      name,
+      status: "active",
+      created_at: serverTimestamp()
+    });
+    load();
+  };
+
+  load();
+</script>
+
+</body>
+</html>
