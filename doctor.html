@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>DigiHealth – Doctor</title>
+</head>
+<body>
+
+<h2>Doctor Panel</h2>
+<p>Only doctors can access this page.</p>
+
+<button onclick="logout()">Logout</button>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script src="firebase.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+  requirePermission("PATIENT_READ");
+</script>
+
+</body>
+</html>
