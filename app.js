@@ -2,12 +2,12 @@
 
 import { ROLES, hasPermission } from "./src/config/permissions.js";
 
-// Firebase references (already initialized in firebase.js)
+// Firebase
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 /* =========================
-   AUTH — LOGIN
+   LOGIN
 ========================= */
 function login() {
   const email = document.getElementById("email").value;
@@ -15,56 +15,38 @@ function login() {
 
   auth
     .signInWithEmailAndPassword(email, password)
-    .then((cred) => {
-      return db.collection("users").doc(cred.user.uid).get();
-    })
+    .then((cred) => db.collection("users").doc(cred.user.uid).get())
     .then((doc) => {
       if (!doc.exists) {
         alert("User profile not found");
         auth.signOut();
         return;
       }
-
-      const role = doc.data().role;
-      redirectByRole(role);
+      redirectByRole(doc.data().role);
     })
     .catch((err) => alert(err.message));
 }
 
 /* =========================
-   ROLE BASED REDIRECT
+   REDIRECT BY ROLE
 ========================= */
 function redirectByRole(role) {
-  switch (role) {
-    case ROLES.SUPER_ADMIN:
-    case ROLES.ADMIN:
-      window.location.href = "admin.html";
-      break;
-
-    case ROLES.DOCTOR:
-      window.location.href = "doctor.html";
-      break;
-
-    case ROLES.CLINIC_MANAGER:
-      window.location.href = "dashboard.html";
-      break;
-
-    case ROLES.MARKETING_REP:
-      window.location.href = "dashboard.html";
-      break;
-
-    case ROLES.PATIENT:
-      window.location.href = "patient.html";
-      break;
-
-    default:
-      alert("Invalid role");
-      auth.signOut();
+  if (role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN) {
+    window.location.href = "admin.html";
+  } else if (role === ROLES.DOCTOR) {
+    window.location.href = "doctor.html";
+  } else if (role === ROLES.CLINIC_MANAGER || role === ROLES.MARKETING_REP) {
+    window.location.href = "dashboard.html";
+  } else if (role === ROLES.PATIENT) {
+    window.location.href = "patient.html";
+  } else {
+    alert("Invalid role");
+    auth.signOut();
   }
 }
 
 /* =========================
-   PERMISSION GUARD
+   PAGE PERMISSION GUARD
 ========================= */
 function requirePermission(permission) {
   auth.onAuthStateChanged(async (user) => {
@@ -75,13 +57,11 @@ function requirePermission(permission) {
 
     const doc = await db.collection("users").doc(user.uid).get();
     if (!doc.exists) {
-      alert("User profile missing");
       auth.signOut();
       return;
     }
 
     const role = doc.data().role;
-
     if (!hasPermission(role, permission)) {
       alert("Access denied");
       window.location.href = "dashboard.html";
@@ -90,9 +70,9 @@ function requirePermission(permission) {
 }
 
 /* =========================
-   DEMO MODE LOCK
+   DOCTOR-ONLY UI ENFORCER
 ========================= */
-function enableDemoMode() {
+function enforceDoctorOnlyUI() {
   auth.onAuthStateChanged(async (user) => {
     if (!user) return;
 
@@ -100,38 +80,56 @@ function enableDemoMode() {
     if (!doc.exists) return;
 
     const role = doc.data().role;
+    const banner = document.getElementById("redBannerControl");
 
-    if (role === ROLES.MARKETING_REP) {
-      // Disable all inputs
-      document
-        .querySelectorAll("input, textarea, select, button")
-        .forEach((el) => {
-          el.disabled = true;
-        });
+    if (banner && role !== ROLES.DOCTOR) {
+      banner.style.display = "none";
+    }
+  });
+}
 
-      // Block form submission
-      document.querySelectorAll("form").forEach((form) => {
-        form.addEventListener("submit", (e) => {
-          e.preventDefault();
-          alert("Demo mode: action disabled");
-        });
+/* =========================
+   RED BANNER LOAD & SAVE
+========================= */
+function initRedBanner(patientRecordId) {
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) return;
+
+    const userDoc = await db.collection("users").doc(user.uid).get();
+    if (!userDoc.exists) return;
+
+    const role = userDoc.data().role;
+
+    const toggle = document.getElementById("redBannerToggle");
+    const comment = document.getElementById("redBannerComment");
+    const saveBtn = document.getElementById("saveRedBannerBtn");
+
+    if (!toggle || !comment || !saveBtn) return;
+
+    const ref = db.collection("patient_records").doc(patientRecordId);
+
+    // LOAD
+    const snap = await ref.get();
+    if (snap.exists) {
+      const data = snap.data();
+      toggle.checked = data.red_banner === true;
+      comment.value = data.red_banner_comment || "";
+    }
+
+    // SAVE (doctor only)
+    saveBtn.onclick = async () => {
+      if (role !== ROLES.DOCTOR) {
+        alert("Only doctors can modify this");
+        return;
+      }
+
+      await ref.update({
+        red_banner: toggle.checked,
+        red_banner_comment: comment.value || ""
       });
 
-      // Demo banner
-      const banner = document.createElement("div");
-      banner.innerText = "DEMO MODE — NO DATA CAN BE MODIFIED";
-      banner.style.position = "fixed";
-      banner.style.top = "0";
-      banner.style.left = "0";
-      banner.style.right = "0";
-      banner.style.background = "red";
-      banner.style.color = "white";
-      banner.style.padding = "10px";
-      banner.style.textAlign = "center";
-      banner.style.zIndex = "9999";
-
-      document.body.prepend(banner);
-    }
+      alert("Red banner updated");
+    };
   });
 }
 
@@ -145,11 +143,10 @@ function logout() {
 }
 
 /* =========================
-   EXPORT TO WINDOW
+   EXPORTS
 ========================= */
 window.login = login;
 window.logout = logout;
 window.requirePermission = requirePermission;
-window.enableDemoMode = enableDemoMode;
-
-
+window.enforceDoctorOnlyUI = enforceDoctorOnlyUI;
+window.initRedBanner = initRedBanner;
