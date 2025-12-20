@@ -4,12 +4,41 @@
   <meta charset="UTF-8" />
   <title>DigiHealth – Doctor</title>
 </head>
+
 <body>
 
 <h2>Doctor Panel</h2>
 <p>Only doctors can access this page.</p>
 
 <button onclick="logout()">Logout</button>
+
+<!-- RED BANNER CONTROL (DOCTOR ONLY) -->
+<div
+  id="redBannerControl"
+  style="border:2px solid red; padding:10px; margin-top:15px;"
+>
+  <h3 style="color:red;">Critical Alert</h3>
+
+  <label>
+    <input type="checkbox" id="redBannerToggle" />
+    Activate Red Banner
+  </label>
+
+  <br /><br />
+
+  <textarea
+    id="redBannerComment"
+    placeholder="Doctor comment (optional)"
+    rows="3"
+    style="width:100%;"
+  ></textarea>
+
+  <br /><br />
+
+  <button id="saveRedBannerBtn">Save Banner</button>
+</div>
+
+<br /><br />
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
