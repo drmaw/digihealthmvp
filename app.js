@@ -152,3 +152,4 @@ window.logout = logout;
 window.requirePermission = requirePermission;
 window.enableDemoMode = enableDemoMode;
 
+
