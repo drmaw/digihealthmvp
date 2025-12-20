@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Patient</title></head>
+<body>
+<h2>রোগী ড্যাশবোর্ড</h2>
+<pre id="me"></pre>
+<script type="module">
+import { requireRole } from "./js/guard.js";
+import { auth, db } from "./js/firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+requireRole("patient");
+onAuthStateChanged(auth, async u=>{
+  const s=await getDoc(doc(db,"users",u.uid));
+  me.textContent=JSON.stringify(s.data(),null,2);
+});
+</script>
+</body>
+</html>

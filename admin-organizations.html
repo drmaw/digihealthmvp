@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Organizations</title></head>
+<body>
+<h3>Organizations</h3>
+<input id="name" placeholder="Name"><button id="add">Add</button>
+<ul id="list"></ul>
+<script type="module">
+import { requireRole } from "./js/guard.js";
+import { db } from "./js/firebase.js";
+import { collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+requireRole("admin");
+add.onclick=async()=>{
+  if(!name.value) return;
+  await addDoc(collection(db,"organizations"),{name:name.value,status:"active",created_at:serverTimestamp()});
+  location.reload();
+};
+const snap=await getDocs(collection(db,"organizations"));
+snap.forEach(d=>{const li=document.createElement("li");li.innerText=d.data().name;list.appendChild(li);});
+</script>
+</body>
+</html>

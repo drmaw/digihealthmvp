@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Users</title></head>
+<body>
+<h3>Users</h3>
+<input id="q" placeholder="phone/health id">
+<ul id="list"></ul>
+<script type="module">
+import { requireRole } from "./js/guard.js";
+import { db } from "./js/firebase.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+requireRole("admin");
+const snap = await getDocs(collection(db,"users"));
+snap.forEach(d=>{
+  const li=document.createElement("li");
+  li.innerHTML = `<a href="/admin/users/${d.id}.html">${d.data().phone||d.id}</a>`;
+  list.appendChild(li);
+});
+</script>
+</body>
+</html>

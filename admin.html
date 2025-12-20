@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Admin</title></head>
+<body>
+<div style="float:right">
+<select onchange="localStorage.setItem('lang',this.value);location.reload()">
+  <option value="bn">বাংলা</option>
+  <option value="en">English</option>
+</select>
+<button id="logout" data-i18n="logout">লগআউট</button>
+</div>
+<h2 data-i18n="dashboard">ড্যাশবোর্ড</h2>
+<ul>
+  <li><a href="/admin-users.html">Users</a></li>
+  <li><a href="/admin-organizations.html">Organizations</a></li>
+</ul>
+<script type="module">
+import { requireRole } from "./js/guard.js";
+import { auth } from "./js/firebase.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { applyLang } from "./js/lang.js";
+applyLang(); requireRole("admin");
+logout.onclick=async()=>{await signOut(auth);location.href="/index.html"};
+</script>
+</body>
+</html>

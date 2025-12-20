@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Doctor</title></head>
+<body>
+<h2>ডাক্তার ড্যাশবোর্ড</h2>
+<input id="q" placeholder="Health ID / Phone">
+<button id="s">Search</button>
+<pre id="out"></pre>
+<script type="module">
+import { requireRole } from "./js/guard.js";
+import { db } from "./js/firebase.js";
+import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+requireRole("doctor");
+s.onclick=async()=>{
+  out.textContent="";
+  const qs=[query(collection(db,"users"),where("phone","==",q.value))];
+  for(const qq of qs){
+    const snap=await getDocs(qq);
+    snap.forEach(d=>out.textContent+=JSON.stringify(d.data(),null,2));
+  }
+};
+</script>
+</body>
+</html>
