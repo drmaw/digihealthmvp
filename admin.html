@@ -6,12 +6,13 @@
 </head>
 <body>
 
-  <!-- Language Switch -->
+  <!-- Top Right Controls -->
   <div style="float:right;">
     <select id="langSwitch">
       <option value="bn">বাংলা</option>
       <option value="en">English</option>
     </select>
+    <button id="logoutBtn">লগআউট</button>
   </div>
 
   <h1 id="title">অ্যাডমিন ড্যাশবোর্ড</h1>
@@ -25,8 +26,8 @@
     <li><a href="admin-organizations.html">🏥 প্রতিষ্ঠান ব্যবস্থাপনা</a></li>
   </ul>
 
+  <!-- Language Script -->
   <script type="module">
-    // Basic language support (UI only for now)
     const LANG = {
       bn: {
         title: "অ্যাডমিন ড্যাশবোর্ড",
@@ -57,28 +58,28 @@
     });
   </script>
 
+  <!-- Logout Script -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
-    authDomain: "digihealth-65f04.firebaseapp.com",
-    projectId: "digihealth-65f04",
-    storageBucket: "digihealth-65f04.appspot.com",
-    messagingSenderId: "704628949252",
-    appId: "1:704628949252:web:b38a476bd9c4259f829051"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+      authDomain: "digihealth-65f04.firebaseapp.com",
+      projectId: "digihealth-65f04",
+      storageBucket: "digihealth-65f04.appspot.com",
+      messagingSenderId: "704628949252",
+      appId: "1:704628949252:web:b38a476bd9c4259f829051"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
-    await signOut(auth);
-    window.location.href = "/index.html";
-  });
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "/index.html";
+    });
   </script>
 
 </body>
 </html>
-
