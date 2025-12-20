@@ -1,19 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>অ্যাডমিন ড্যাশবোর্ড</title>
+</head>
 <body>
 
-<h2>Admin</h2>
-<button onclick="logout()">Logout</button>
+  <!-- Language Switch -->
+  <div style="float:right;">
+    <select id="langSwitch">
+      <option value="bn">বাংলা</option>
+      <option value="en">English</option>
+    </select>
+  </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="firebase.js"></script>
-<script type="module" src="app.js"></script>
+  <h1 id="title">অ্যাডমিন ড্যাশবোর্ড</h1>
 
-<script>
-  requirePermission("USER_READ");
-</script>
+  <p id="welcome">স্বাগতম, অ্যাডমিন।</p>
+
+  <hr>
+
+  <ul>
+    <li><a href="admin-users.html">👥 ব্যবহারকারী ব্যবস্থাপনা</a></li>
+    <li><a href="admin-organizations.html">🏥 প্রতিষ্ঠান ব্যবস্থাপনা</a></li>
+  </ul>
+
+  <script type="module">
+    // Basic language support (UI only for now)
+    const LANG = {
+      bn: {
+        title: "অ্যাডমিন ড্যাশবোর্ড",
+        welcome: "স্বাগতম, অ্যাডমিন।"
+      },
+      en: {
+        title: "Admin Dashboard",
+        welcome: "Welcome, Admin."
+      }
+    };
+
+    const langSwitch = document.getElementById("langSwitch");
+    const title = document.getElementById("title");
+    const welcome = document.getElementById("welcome");
+
+    function applyLang(lang) {
+      title.innerText = LANG[lang].title;
+      welcome.innerText = LANG[lang].welcome;
+      localStorage.setItem("lang", lang);
+    }
+
+    const savedLang = localStorage.getItem("lang") || "bn";
+    langSwitch.value = savedLang;
+    applyLang(savedLang);
+
+    langSwitch.addEventListener("change", () => {
+      applyLang(langSwitch.value);
+    });
+  </script>
 
 </body>
 </html>
