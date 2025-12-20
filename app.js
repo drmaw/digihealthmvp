@@ -150,3 +150,4 @@ window.logout = logout;
 window.requirePermission = requirePermission;
 window.enforceDoctorOnlyUI = enforceDoctorOnlyUI;
 window.initRedBanner = initRedBanner;
+
