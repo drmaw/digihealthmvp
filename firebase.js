@@ -1,12 +1,15 @@
 // firebase.js
 
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+  authDomain: "digihealth-65f04.firebaseapp.com",
+  projectId: "digihealth-65f04",
+  storageBucket: "digihealth-65f04.appspot.com",
+  messagingSenderId: "704628949252",
+  appId: "1:704628949252:web:b38a476bd9c4259f829051"
 };
 
+// Initialize Firebase (COMPAT MODE)
 firebase.initializeApp(firebaseConfig);
+
+
