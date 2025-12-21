@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>Clinic Appointments</title></head>
+<body>
+
+<h3>ক্লিনিক অ্যাপয়েন্টমেন্ট</h3>
+<ul id="list"></ul>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { listAppointments, updateAppointmentStatus } from "../js/appointments.js";
+
+const { profile } = await requireRole(["manager", "assistant_manager"]);
+const appts = await listAppointments({
+  organization_id: profile.organization_id
+});
+
+appts.forEach(a => {
+  const li = document.createElement("li");
+  li.innerHTML = `
+    ${a.status} — ${new Date(a.scheduled_at.seconds * 1000).toLocaleString()}
+    <button data-id="${a.id}" data-s="confirmed">Confirm</button>
+    <button data-id="${a.id}" data-s="appointed">Arrived</button>
+    <button data-id="${a.id}" data-s="cancelled">Cancel</button>
+  `;
+  list.appendChild(li);
+});
+
+list.onclick = async e => {
+  if (!e.target.dataset.id) return;
+  await updateAppointmentStatus(e.target.dataset.id, e.target.dataset.s);
+  location.reload();
+};
+</script>
+
+</body>
+</html>
