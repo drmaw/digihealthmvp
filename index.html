@@ -1,29 +1,73 @@
 <!DOCTYPE html>
 <html lang="bn">
-<head><meta charset="UTF-8"><title>DigiHealth</title></head>
+<head>
+  <meta charset="UTF-8">
+  <title>DigiHealth</title>
+</head>
 <body>
+
 <div style="float:right">
-<select onchange="localStorage.setItem('lang',this.value);location.reload()">
-  <option value="bn">বাংলা</option>
-  <option value="en">English</option>
-</select>
+  <select onchange="localStorage.setItem('lang',this.value);location.reload()">
+    <option value="bn">বাংলা</option>
+    <option value="en">English</option>
+  </select>
 </div>
+
 <h2 data-i18n="login">লগইন</h2>
+
 <input id="email" data-i18n-placeholder="email" placeholder="ইমেইল">
 <input id="password" type="password" data-i18n-placeholder="password" placeholder="পাসওয়ার্ড">
 <button id="btn" data-i18n="login">লগইন</button>
+
 <script type="module">
 import { auth, db } from "./js/firebase.js";
 import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { applyLang } from "./js/lang.js";
+
 applyLang();
-document.getElementById("btn").onclick = async ()=>{
-  const c = await signInWithEmailAndPassword(auth, email.value, password.value);
-  const snap = await getDoc(doc(db,"users",c.user.uid));
-  const r = snap.data().role_id;
-  location.href = r==="admin"?"/admin.html":(r==="doctor"?"/doctor.html":"/patient.html");
+
+document.getElementById("btn").onclick = async () => {
+  try {
+    const cred = await signInWithEmailAndPassword(
+      auth,
+      email.value,
+      password.value
+    );
+
+    const snap = await getDoc(doc(db, "users", cred.user.uid));
+
+    if (!snap.exists()) {
+      alert("User profile not found");
+      location.href = "/index.html";
+      return;
+    }
+
+    const role = snap.data().role_id;
+
+    if (role === "admin") {
+      location.href = "/admin.html";
+
+    } else if (role === "doctor") {
+      location.href = "/doctor.html";
+
+    } else if (role === "patient") {
+      location.href = "/patient.html";
+
+    } else if (role === "clinic_manager" || role === "assistant_manager") {
+      location.href = "/manager.html";
+
+    } else {
+      alert("Unauthorized role");
+      location.href = "/index.html";
+    }
+
+  } catch (e) {
+    alert(e.message);
+    console.error(e);
+  }
 };
 </script>
+
 </body>
 </html>
