@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>আমার মেডিকেল রেকর্ড</title>
+</head>
+<body>
+
+<h2>আমার মেডিকেল রেকর্ড</h2>
+
+<section>
+  <h3>নতুন রেকর্ড যোগ করুন</h3>
+  <input id="title" placeholder="শিরোনাম">
+  <br><br>
+  <textarea id="notes" placeholder="বিবরণ"></textarea>
+  <br><br>
+  <button id="add">আপলোড</button>
+</section>
+
+<hr>
+
+<h3>রেকর্ড তালিকা</h3>
+<ul id="list"></ul>
+
+<script type="module">
+import { auth } from "../js/firebase.js";
+import { requireRole } from "../js/guard.js";
+import {
+  uploadRecord, listRecordsByPatient,
+  setHidden, deleteRecord
+} from "../js/records.js";
+
+const { user } = await requireRole(["patient"]);
+
+async function load() {
+  list.innerHTML = "";
+  const rows = await listRecordsByPatient(user.uid, true);
+  rows.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <b>${r.title}</b> ${r.hidden ? "(লুকানো)" : ""}
+      <br>${r.notes || ""}
+      <br>
+      <button data-h="${r.hidden ? "0" : "1"}" data-id="${r.id}">
+        ${r.hidden ? "দেখান" : "লুকান"}
+      </button>
+      <button data-del="${r.id}">মুছে ফেলুন</button>
+      <hr>
+    `;
+    list.appendChild(li);
+  });
+}
+
+add.onclick = async () => {
+  await uploadRecord({
+    patient_uid: user.uid,
+    title: title.value,
+    notes: notes.value
+  });
+  title.value = ""; notes.value = "";
+  load();
+};
+
+list.onclick = async (e) => {
+  if (e.target.dataset.h) {
+    await setHidden(e.target.dataset.id, e.target.dataset.h === "1");
+    load();
+  }
+  if (e.target.dataset.del) {
+    if (confirm("এটি স্থায়ীভাবে মুছে যাবে। নিশ্চিত?")) {
+      await deleteRecord(e.target.dataset.del);
+      load();
+    }
+  }
+};
+
+load();
+</script>
+
+</body>
+</html>
