@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>রোগীর রেকর্ড (ক্লিনিক)</title>
+</head>
+<body>
+
+<h2>রোগীর রেকর্ড (রিড-অনলি)</h2>
+
+<input id="pid" placeholder="Patient UID">
+<button id="load">লোড</button>
+
+<ul id="list"></ul>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { listRecordsByPatient } from "../js/records.js";
+
+await requireRole(["clinic_manager","assistant_manager"]);
+
+load.onclick = async () => {
+  list.innerHTML = "";
+  const rows = await listRecordsByPatient(pid.value, false);
+  rows.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${r.title}</b><br>${r.notes || ""}<hr>`;
+    list.appendChild(li);
+  });
+};
+</script>
+
+</body>
+</html>
