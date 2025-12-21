@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Search Person</title>
+</head>
+<body>
+
+<h3>ডিজিহেলথ অনুসন্ধান</h3>
+
+<input
+  id="searchInput"
+  placeholder="DigiHealth ID অথবা মোবাইল নম্বর"
+/>
+<button id="searchBtn">খুঁজুন</button>
+
+<pre id="result"></pre>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { searchUser } from "../js/search.js";
+
+await requireRole([
+  "manager",
+  "assistant_manager",
+  "doctor",
+  "lab",
+  "frontdesk"
+]);
+
+searchBtn.onclick = async () => {
+  result.textContent = "অনুসন্ধান চলছে...";
+
+  const user = await searchUser(searchInput.value);
+
+  if (!user) {
+    result.textContent = "কোনো তথ্য পাওয়া যায়নি";
+    return;
+  }
+
+  result.textContent = JSON.stringify(
+    {
+      name: user.name || "",
+      digihealth_id: user.digihealth_id,
+      mobile: user.mobile,
+      role: user.role_id
+    },
+    null,
+    2
+  );
+};
+</script>
+
+</body>
+</html>
