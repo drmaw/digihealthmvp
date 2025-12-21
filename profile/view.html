@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Profile</title>
+</head>
+<body>
+
+<h3>প্রোফাইল</h3>
+<pre id="profileBox"></pre>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { db } from "../js/firebase.js";
+import {
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const { profile: viewer } = await requireRole([
+  "patient",
+  "doctor",
+  "manager",
+  "assistant_manager",
+  "admin"
+]);
+
+const params = new URLSearchParams(window.location.search);
+const uid = params.get("uid");
+
+if (!uid) {
+  profileBox.textContent = "ব্যবহারকারী নির্দিষ্ট করা হয়নি";
+} else {
+  const snap = await getDoc(doc(db, "users", uid));
+
+  if (!snap.exists()) {
+    profileBox.textContent = "প্রোফাইল পাওয়া যায়নি";
+  } else {
+    const data = snap.data();
+
+    // Role-aware visibility
+    let visible = {
+      name: data.name || "",
+      digihealth_id: data.digihealth_id,
+      mobile: data.mobile,
+      role: data.role_id
+    };
+
+    if (viewer.role_id === "doctor") {
+      visible.note = "ডাক্তারের জন্য রোগীর প্রোফাইল";
+    }
+
+    if (viewer.role_id === "manager") {
+      visible.note = "ম্যানেজারের জন্য সীমিত প্রোফাইল";
+    }
+
+    if (viewer.role_id === "patient" && viewer.uid === uid) {
+      visible.note = "আপনার নিজের প্রোফাইল";
+    }
+
+    profileBox.textContent = JSON.stringify(visible, null, 2);
+  }
+}
+</script>
+
+</body>
+</html>
