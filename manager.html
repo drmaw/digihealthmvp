@@ -2,44 +2,31 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>ম্যানেজার ড্যাশবোর্ড</title>
+  <title>রোগীর রেকর্ড (ক্লিনিক)</title>
 </head>
-<body style="display:flex;gap:10px;">
+<body>
 
-<div id="sidebar"></div>
+<h2>রোগীর রেকর্ড (রিড-অনলি)</h2>
 
-<main style="padding:10px;flex:1;">
-  <h2>ম্যানেজার ড্যাশবোর্ড</h2>
+<input id="pid" placeholder="Patient UID">
+<button id="load">লোড</button>
 
-  <h3>DigiHealth QR</h3>
-  <img id="qr" alt="DigiHealth QR Code">
-
-  <p>বাম পাশের মেনু থেকে অপশন নির্বাচন করুন।</p>
-</main>
+<ul id="list"></ul>
 
 <script type="module">
-import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { auth } from "./js/firebase.js";
-import { generateProfileQR } from "./js/qr.js";
-import { requireClinicUser } from "./clinic/clinic.js";
+import { requireRole } from "../js/guard.js";
+import { listRecordsByPatient } from "../js/records.js";
 
-// load sidebar
-const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
-document.getElementById("sidebar").innerHTML = sidebar;
+await requireRole(["clinic_manager","assistant_manager"]);
 
-// auth + org guard
-const { profile } = await requireClinicUser();
-
-// QR
-generateProfileQR(document.getElementById("qr"), {
-  digihealth_id: profile.digihealth_id,
-  role: profile.role_id
-});
-
-// logout
-document.getElementById("logout").onclick = async () => {
-  await signOut(auth);
-  location.href = "/index.html";
+load.onclick = async () => {
+  list.innerHTML = "";
+  const rows = await listRecordsByPatient(pid.value, false);
+  rows.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${r.title}</b><br>${r.notes || ""}<hr>`;
+    list.appendChild(li);
+  });
 };
 </script>
 
