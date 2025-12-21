@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Assign Staff</title>
+</head>
+<body>
+
+<h3>স্টাফ নিয়োগ</h3>
+
+<input
+  id="searchInput"
+  placeholder="DigiHealth ID অথবা মোবাইল নম্বর"
+/>
+<button id="searchBtn">খুঁজুন</button>
+
+<div id="staffBox" style="display:none;">
+  <p id="staffInfo"></p>
+
+  <select id="orgRole">
+    <option value="doctor">Doctor</option>
+    <option value="nurse">Nurse</option>
+    <option value="lab">Lab Technician</option>
+    <option value="pathologist">Pathologist</option>
+    <option value="assistant_manager">Assistant Manager</option>
+  </select>
+
+  <button id="assignBtn">Assign</button>
+</div>
+
+<pre id="msg"></pre>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { searchUser } from "../js/search.js";
+import { db } from "../js/firebase.js";
+import {
+  doc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const { profile } = await requireRole(["manager"]);
+
+let foundUser = null;
+
+searchBtn.onclick = async () => {
+  msg.textContent = "";
+  staffBox.style.display = "none";
+
+  const user = await searchUser(searchInput.value);
+
+  if (!user) {
+    msg.textContent = "কোনো ব্যবহারকারী পাওয়া যায়নি";
+    return;
+  }
+
+  foundUser = user;
+
+  staffInfo.innerText =
+    `নাম: ${user.name || ""}\n` +
+    `DigiHealth ID: ${user.digihealth_id}\n` +
+    `বর্তমান ভূমিকা: ${user.role_id}`;
+
+  staffBox.style.display = "block";
+};
+
+assignBtn.onclick = async () => {
+  if (!foundUser) return;
+
+  await updateDoc(doc(db, "users", foundUser.uid), {
+    organization_id: profile.organization_id,
+    organization_role: orgRole.value
+  });
+
+  msg.textContent = "স্টাফ সফলভাবে নিয়োগ করা হয়েছে";
+};
+</script>
+
+</body>
+</html>
