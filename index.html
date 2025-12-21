@@ -1,72 +1,85 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>DigiHealth</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth Login</title>
 </head>
 <body>
 
+<!-- Language selector -->
 <div style="float:right">
-  <select onchange="localStorage.setItem('lang',this.value);location.reload()">
+  <select id="langSwitch">
     <option value="bn">বাংলা</option>
     <option value="en">English</option>
   </select>
 </div>
 
-<h2 data-i18n="login">লগইন</h2>
+<h2 id="title">লগইন</h2>
 
-<input id="email" data-i18n-placeholder="email" placeholder="ইমেইল">
-<input id="password" type="password" data-i18n-placeholder="password" placeholder="পাসওয়ার্ড">
-<button id="btn" data-i18n="login">লগইন</button>
+<input id="email" placeholder="ইমেইল" />
+<br /><br />
+<input id="password" type="password" placeholder="পাসওয়ার্ড" />
+<br /><br />
+<button id="btn">লগইন</button>
 
 <script type="module">
-import { auth, db } from "./js/firebase.js";
-import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { applyLang } from "./js/lang.js";
+  import { auth, db } from "./js/firebase.js";
+  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-applyLang();
+  // Language persistence
+  const lang = localStorage.getItem("lang") || "bn";
+  document.getElementById("langSwitch").value = lang;
+  document.getElementById("langSwitch").onchange = e => {
+    localStorage.setItem("lang", e.target.value);
+    location.reload();
+  };
 
-document.getElementById("btn").onclick = async () => {
-  try {
-    const cred = await signInWithEmailAndPassword(
-      auth,
-      email.value,
-      password.value
-    );
+  document.getElementById("btn").onclick = async () => {
+    try {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
 
-    const snap = await getDoc(doc(db, "users", cred.user.uid));
+      const cred = await signInWithEmailAndPassword(auth, email, password);
 
-    if (!snap.exists()) {
-      alert("User profile not found");
-      location.href = "/index.html";
-      return;
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+
+      if (!snap.exists()) {
+        alert("User profile missing");
+        return;
+      }
+
+      const role = snap.data().role_id;
+
+      // 🔐 ROLE ROUTING — FINAL & COMPLETE
+      switch (role) {
+        case "admin":
+          location.href = "/admin.html";
+          break;
+
+        case "doctor":
+          location.href = "/doctor.html";
+          break;
+
+        case "patient":
+          location.href = "/patient.html";
+          break;
+
+        case "clinic_manager":
+        case "assistant_manager":
+          location.href = "/manager.html";
+          break;
+
+        default:
+          alert("Unauthorized role: " + role);
+          location.href = "/index.html";
+      }
+
+    } catch (err) {
+      alert(err.message);
+      console.error(err);
     }
-
-    const role = snap.data().role_id;
-
-    if (role === "admin") {
-      location.href = "/admin.html";
-
-    } else if (role === "doctor") {
-      location.href = "/doctor.html";
-
-    } else if (role === "patient") {
-      location.href = "/patient.html";
-
-    } else if (role === "clinic_manager" || role === "assistant_manager") {
-      location.href = "/manager.html";
-
-    } else {
-      alert("Unauthorized role");
-      location.href = "/index.html";
-    }
-
-  } catch (e) {
-    alert(e.message);
-    console.error(e);
-  }
-};
+  };
 </script>
 
 </body>
