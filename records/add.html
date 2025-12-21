@@ -1,4 +1,5 @@
 <script type="module">
+/* ===== Imports (MUST be first) ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -11,9 +12,9 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* Firebase config */
+/* ===== Firebase config ===== */
 const firebaseConfig = {
-  apiKey: "AIzaSyBQUMQgc57d4wWSW2auFyYCS19q8vxBU4",
+  apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
   authDomain: "digihealth-65f04.firebaseapp.com",
   projectId: "digihealth-65f04",
   storageBucket: "digihealth-65f04.appspot.com",
@@ -21,16 +22,18 @@ const firebaseConfig = {
   appId: "1:704628949252:web:b38a476bd9c4259f829051"
 };
 
+/* ===== Init ===== */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+/* ===== UI ===== */
 const statusBox = document.getElementById("status");
 const saveBtn = document.getElementById("saveBtn");
 
 let currentUser = null;
 
-/* Ensure user is logged in */
+/* ===== Auth check ===== */
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     statusBox.innerText = "লগইন করা নেই";
@@ -39,7 +42,7 @@ onAuthStateChanged(auth, (user) => {
   currentUser = user;
 });
 
-/* Save record */
+/* ===== Save medical record ===== */
 saveBtn.onclick = async () => {
   statusBox.innerText = "খোঁজা হচ্ছে...";
 
@@ -78,8 +81,8 @@ saveBtn.onclick = async () => {
 
     statusBox.innerText = "রেকর্ড সংরক্ষণ হয়েছে";
 
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error(err);
     statusBox.innerText = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
   }
 };
