@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>সহকারী ম্যানেজার</title>
+</head>
+<body style="display:flex;gap:10px;">
+
+<div id="sidebar"></div>
+
+<main style="padding:10px;flex:1;">
+  <h2>সহকারী ম্যানেজার ড্যাশবোর্ড</h2>
+
+  <h3>DigiHealth QR</h3>
+  <img id="qr" alt="DigiHealth QR Code">
+
+  <p>বাম পাশের মেনু থেকে অপশন নির্বাচন করুন।</p>
+</main>
+
+<script type="module">
+import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth } from "./js/firebase.js";
+import { generateProfileQR } from "./js/qr.js";
+import { requireClinicUser } from "./clinic/clinic.js";
+
+// load sidebar
+const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
+document.getElementById("sidebar").innerHTML = sidebar;
+
+// auth + org guard
+const { profile } = await requireClinicUser();
+
+// QR
+generateProfileQR(document.getElementById("qr"), {
+  digihealth_id: profile.digihealth_id,
+  role: profile.role_id
+});
+
+// logout
+document.getElementById("logout").onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
+};
+</script>
+
+</body>
+</html>
