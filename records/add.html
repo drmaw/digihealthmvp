@@ -26,41 +26,53 @@ const db = getFirestore(app);
 
 const statusBox = document.getElementById("status");
 
-document.getElementById("saveBtn").onclick = async () => {
-  statusBox.innerText = "খোঁজা হচ্ছে...";
+import { onAuthStateChanged } from
+"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  const input = document.getElementById("patientInput").value.trim();
-  const diagnosis = document.getElementById("diagnosis").value;
-  const note = document.getElementById("note").value;
-
-  try {
-    const usersRef = collection(db, "users");
-
-    const q = isNaN(input)
-      ? query(usersRef, where("phone", "==", input))
-      : query(usersRef, where("health_id_10", "==", input));
-
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      statusBox.innerText = "রোগী পাওয়া যায়নি";
-      return;
-    }
-
-    const patientDoc = snap.docs[0];
-
-    await addDoc(collection(db, "patient_records"), {
-      patient_uid: patientDoc.id,
-      diagnosis,
-      note,
-      created_by: auth.currentUser.uid,
-      created_at: serverTimestamp()
-    });
-
-    statusBox.innerText = "রেকর্ড সংরক্ষণ হয়েছে";
-  } catch (e) {
-    console.error(e);
-    statusBox.innerText = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    statusBox.innerText = "লগইন করা নেই";
+    return;
   }
+
+  document.getElementById("saveBtn").onclick = async () => {
+    statusBox.innerText = "খোঁজা হচ্ছে...";
+
+    const input = document.getElementById("patientInput").value.trim();
+    const diagnosis = document.getElementById("diagnosis").value;
+    const note = document.getElementById("note").value;
+
+    try {
+      const usersRef = collection(db, "users");
+
+      const q = isNaN(input)
+        ? query(usersRef, where("phone", "==", input))
+        : query(usersRef, where("health_id_10", "==", input));
+
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        statusBox.innerText = "রোগী পাওয়া যায়নি";
+        return;
+      }
+
+      const patientDoc = snap.docs[0];
+
+      await addDoc(collection(db, "patient_records"), {
+        patient_uid: patientDoc.id,
+        diagnosis,
+        note,
+        created_by: user.uid,
+        created_at: serverTimestamp()
+      });
+
+      statusBox.innerText = "রেকর্ড সংরক্ষণ হয়েছে";
+
+    } catch (e) {
+      console.error(e);
+      statusBox.innerText = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
+    }
+  };
+});
 };
 </script>
