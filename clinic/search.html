@@ -1,53 +1,51 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <title>Search Person</title>
+  <meta charset="UTF-8">
+  <title>রোগী অনুসন্ধান</title>
 </head>
-<body>
+<body style="display:flex;gap:10px;">
 
-<h3>ডিজিহেলথ অনুসন্ধান</h3>
+<div id="sidebar"></div>
 
-<input
-  id="searchInput"
-  placeholder="DigiHealth ID অথবা মোবাইল নম্বর"
-/>
-<button id="searchBtn">খুঁজুন</button>
+<main style="padding:10px;flex:1;">
+  <h2>রোগী / ব্যবহারকারী অনুসন্ধান</h2>
 
-<pre id="result"></pre>
+  <input id="q" placeholder="ফোন নম্বর বা DigiHealth ID">
+  <button id="btn">খুঁজুন</button>
+
+  <pre id="out"></pre>
+</main>
 
 <script type="module">
-import { requireRole } from "../js/guard.js";
-import { searchUser } from "../js/search.js";
+import { requireClinicUser, searchUserGlobal } from "./clinic.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth } from "../js/firebase.js";
 
-await requireRole([
-  "manager",
-  "assistant_manager",
-  "doctor",
-  "lab",
-  "frontdesk"
-]);
+// sidebar
+const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
+document.getElementById("sidebar").innerHTML = sidebar;
 
-searchBtn.onclick = async () => {
-  result.textContent = "অনুসন্ধান চলছে...";
+// auth
+await requireClinicUser();
 
-  const user = await searchUser(searchInput.value);
+// search
+btn.onclick = async () => {
+  out.textContent = "অনুসন্ধান চলছে...";
+  const res = await searchUserGlobal(q.value);
 
-  if (!user) {
-    result.textContent = "কোনো তথ্য পাওয়া যায়নি";
+  if (!res || res.length === 0) {
+    out.textContent = "কোনো তথ্য পাওয়া যায়নি";
     return;
   }
 
-  result.textContent = JSON.stringify(
-    {
-      name: user.name || "",
-      digihealth_id: user.digihealth_id,
-      mobile: user.mobile,
-      role: user.role_id
-    },
-    null,
-    2
-  );
+  out.textContent = JSON.stringify(res, null, 2);
+};
+
+// logout
+document.getElementById("logout").onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
 };
 </script>
 
