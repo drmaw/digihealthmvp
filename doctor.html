@@ -1,36 +1,34 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>ডাক্তার</title>
+  <meta charset="UTF-8" />
+  <title>ডাক্তার ড্যাশবোর্ড</title>
 </head>
 <body>
 
 <button id="logout">লগআউট</button>
-
-<h3>DigiHealth QR</h3>
-<img id="qr" alt="DigiHealth QR Code" />
-
 <hr>
 
-<input id="q" placeholder="ফোন / DigiHealth ID">
-<button id="s">খুঁজুন</button>
-<pre id="out"></pre>
+<h2>নতুন মেডিকেল রেকর্ড যোগ করুন</h2>
+
+<label>রোগীর DigiHealth ID অথবা মোবাইল নম্বর</label><br>
+<input id="searchInput" placeholder="DigiHealth ID বা মোবাইল নম্বর"><br><br>
+
+<label>রোগ নির্ণয়</label><br>
+<textarea id="diagnosis" rows="3"></textarea><br><br>
+
+<label>প্রেসক্রিপশন / নোট</label><br>
+<textarea id="notes" rows="5"></textarea><br><br>
+
+<button id="saveRecord">সংরক্ষণ করুন</button>
+
+<hr>
+<pre id="status"></pre>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import { generateProfileQR } from "./js/qr.js";
+import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* Firebase config */
 const firebaseConfig = {
@@ -46,74 +44,77 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* Auth + role check */
-onAuthStateChanged(auth, async (u) => {
-  if (!u) {
+const statusBox = document.getElementById("status");
+
+/* Auth + role protection */
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
     location.href = "/index.html";
     return;
   }
 
-  const meSnap = await getDoc(doc(db, "users", u.uid));
-  if (!meSnap.exists()) {
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists() || snap.data().role_id !== "doctor") {
     location.href = "/index.html";
     return;
   }
-
-  const me = meSnap.data();
-
-  if (me.role_id !== "doctor") {
-    location.href = "/index.html";
-    return;
-  }
-
-  /* Generate QR for doctor */
-  generateProfileQR(
-    document.getElementById("qr"),
-    {
-      digihealth_id: me.digihealth_id,
-      role: me.role_id
-    }
-  );
 });
 
 /* Logout */
-logout.onclick = async () => {
+document.getElementById("logout").onclick = async () => {
   await signOut(auth);
   location.href = "/index.html";
 };
 
-/* Search patient by phone or DigiHealth ID */
-s.onclick = async () => {
-  out.textContent = "";
+/* Save medical record */
+document.getElementById("saveRecord").onclick = async () => {
+  statusBox.textContent = "খোঁজা হচ্ছে...";
 
-  let qRef;
+  const key = document.getElementById("searchInput").value.trim();
+  const diagnosis = document.getElementById("diagnosis").value.trim();
+  const notes = document.getElementById("notes").value.trim();
 
-  if (/^\d{10}$/.test(q.value)) {
-    // DigiHealth ID
-    qRef = query(
-      collection(db, "users"),
-      where("role_id", "==", "patient"),
-      where("digihealth_id", "==", q.value)
-    );
-  } else {
-    // Phone
-    qRef = query(
-      collection(db, "users"),
-      where("role_id", "==", "patient"),
-      where("mobile", "==", q.value)
-    );
-  }
-
-  const snap = await getDocs(qRef);
-
-  if (snap.empty) {
-    out.textContent = "কোনো রোগী পাওয়া যায়নি";
+  if (!key || !diagnosis) {
+    statusBox.textContent = "সব ঘর পূরণ করুন";
     return;
   }
 
-  snap.forEach(d =>
-    out.textContent += JSON.stringify(d.data(), null, 2) + "\n"
+  /* Search patient by DigiHealth ID or phone */
+  let q = query(
+    collection(db, "users"),
+    where("health_id_10", "==", key)
   );
+
+  let snap = await getDocs(q);
+
+  if (snap.empty) {
+    q = query(
+      collection(db, "users"),
+      where("phone", "==", key)
+    );
+    snap = await getDocs(q);
+  }
+
+  if (snap.empty) {
+    statusBox.textContent = "রোগী পাওয়া যায়নি";
+    return;
+  }
+
+  const patient = snap.docs[0];
+
+  await addDoc(collection(db, "patient_records"), {
+    patient_uid: patient.id,
+    patient_health_id: patient.data().health_id_10,
+    doctor_uid: auth.currentUser.uid,
+    diagnosis,
+    notes,
+    createdAt: serverTimestamp()
+  });
+
+  statusBox.textContent = "মেডিকেল রেকর্ড সংরক্ষিত হয়েছে ✅";
+
+  document.getElementById("diagnosis").value = "";
+  document.getElementById("notes").value = "";
 };
 </script>
 
