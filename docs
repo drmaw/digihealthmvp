@@ -1,0 +1,95 @@
+# DigiHealth — Project Map
+
+This document explains how the DigiHealth codebase is organized.
+InshaAllah the effort will pay off.
+
+---
+
+## 1. Core Idea
+
+- Every user is an **individual first** (patient-capable)
+- Roles (doctor, owner, manager, etc.) add permissions
+- Roles do NOT replace identity, They Give Capabilities
+
+---
+
+## 2. Folder Structure
+
+### /profile
+All personal and professional profiles live here.
+
+- patient.html → Individual (personal + health)
+- doctor.html → Doctor professional profile
+- owner.html → Organization owner profile
+- manager.html → Organization manager profile
+
+---
+
+### /organization
+Everything related to clinics / hospitals.
+
+- profile.html → Organization profile
+- staff.html → Staff management
+- queue.html → Daily patient queue
+- stats.html → Organization statistics
+
+---
+
+### /appointments
+Doctor appointment system.
+
+- create.html → Create appointment
+- patient.html → Patient appointment list
+- doctor.html → Doctor appointment view
+- organization.html → Front desk / clinic view
+
+---
+
+### /records
+Medical records system.
+
+- upload.html → Upload medical records
+- patient.html → Patient record view
+- doctor.html → Doctor record view
+- view.html → Unified record viewer
+
+---
+
+### /admin
+System governance (admin only).
+
+- audit.html → Audit & change logs
+- roles.html → Role & permission management
+
+---
+
+### /js
+Shared JavaScript logic.
+
+- auth-guard.js → Login & role protection
+- roles.js → Role helpers
+- appointments.js → Appointment logic
+- records.js → Medical record logic
+- organization.js → Organization logic
+- utils.js → Common helpers
+
+---
+
+## 3. Backend (Firebase)
+
+- Authentication → Firebase Auth
+- Database → Firestore
+- Files → Firebase Storage
+- Rules → firestore.rules
+
+---
+
+## 4. Important Rule
+
+If you are confused:
+1. Find the **HTML page**
+2. See which **JS file** it uses
+3. Check **Firestore collection**
+4. Check **Firestore rules**
+
+This system is designed to be readable.
