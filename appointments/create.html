@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html langlang="bn">
+<head><meta charset="UTF-8"><title>Create Appointment</title></head>
+<body>
+
+<h3>অ্যাপয়েন্টমেন্ট তৈরি করুন</h3>
+
+<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
+<input id="doctorInput" placeholder="Doctor DigiHealth ID / Mobile (optional)">
+<input id="dateInput" type="datetime-local">
+<button id="createBtn">Create</button>
+
+<pre id="msg"></pre>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { searchUser } from "../js/search.js";
+import { createAppointment } from "../js/appointments.js";
+
+const { user, profile } = await requireRole([
+  "patient",
+  "doctor",
+  "manager",
+  "assistant_manager"
+]);
+
+createBtn.onclick = async () => {
+  msg.textContent = "";
+
+  const patient = await searchUser(patientInput.value);
+  if (!patient) {
+    msg.textContent = "Patient not found";
+    return;
+  }
+
+  let doctor = null;
+  if (doctorInput.value.trim()) {
+    doctor = await searchUser(doctorInput.value);
+    if (!doctor) {
+      msg.textContent = "Doctor not found";
+      return;
+    }
+  }
+
+  await createAppointment({
+    patient_uid: patient.uid,
+    doctor_uid: doctor ? doctor.uid : null,
+    organization_id: profile.organization_id || null,
+    scheduled_at: new Date(dateInput.value),
+    created_by_uid: user.uid,
+    created_by_role: profile.role_id
+  });
+
+  msg.textContent = "Appointment created";
+};
+</script>
+
+</body>
+</html>
