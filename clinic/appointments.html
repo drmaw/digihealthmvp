@@ -1,24 +1,47 @@
 <!DOCTYPE html>
 <html lang="bn">
-<head><meta charset="UTF-8"><title>Clinic Appointments</title></head>
-<body>
+<head>
+  <meta charset="UTF-8">
+  <title>ক্লিনিক অ্যাপয়েন্টমেন্ট</title>
+</head>
+<body style="display:flex;gap:10px;">
 
-<h3>ক্লিনিক অ্যাপয়েন্টমেন্ট</h3>
-<ul id="list"></ul>
+<div id="sidebar"></div>
+
+<main style="padding:10px;flex:1;">
+  <h2>অ্যাপয়েন্টমেন্ট তালিকা</h2>
+
+  <ul id="list"></ul>
+</main>
 
 <script type="module">
-import { requireRole } from "../js/guard.js";
-import { listAppointments, updateAppointmentStatus } from "../js/appointments.js";
+import {
+  requireClinicUser,
+  listClinicAppointments,
+  updateAppointmentStatus
+} from "./clinic.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth } from "../js/firebase.js";
 
-const { profile } = await requireRole(["manager", "assistant_manager"]);
-const appts = await listAppointments({
-  organization_id: profile.organization_id
-});
+// sidebar
+const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
+document.getElementById("sidebar").innerHTML = sidebar;
+
+// auth + org
+const { profile } = await requireClinicUser();
+
+// load appointments
+const appts = await listClinicAppointments(profile.organization_id);
+
+list.innerHTML = "";
 
 appts.forEach(a => {
   const li = document.createElement("li");
   li.innerHTML = `
-    ${a.status} — ${new Date(a.scheduled_at.seconds * 1000).toLocaleString()}
+    <b>${a.status}</b> —
+    ${a.scheduled_at?.seconds
+      ? new Date(a.scheduled_at.seconds * 1000).toLocaleString()
+      : ""}
     <button data-id="${a.id}" data-s="confirmed">Confirm</button>
     <button data-id="${a.id}" data-s="appointed">Arrived</button>
     <button data-id="${a.id}" data-s="cancelled">Cancel</button>
@@ -26,10 +49,16 @@ appts.forEach(a => {
   list.appendChild(li);
 });
 
-list.onclick = async e => {
+list.onclick = async (e) => {
   if (!e.target.dataset.id) return;
   await updateAppointmentStatus(e.target.dataset.id, e.target.dataset.s);
   location.reload();
+};
+
+// logout
+document.getElementById("logout").onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
 };
 </script>
 
