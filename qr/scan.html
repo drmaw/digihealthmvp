@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR Scan</title>
+</head>
+<body>
+
+<h3>QR স্ক্যান ফলাফল</h3>
+<pre id="msg"></pre>
+
+<script type="module">
+import { parseQRPayload } from "../js/qr.js";
+import { searchUser } from "../js/search.js";
+
+const params = new URLSearchParams(window.location.search);
+const data = params.get("data");
+
+if (!data) {
+  msg.textContent = "QR তথ্য পাওয়া যায়নি";
+} else {
+  const payload = parseQRPayload(data);
+
+  if (!payload || !payload.digihealth_id) {
+    msg.textContent = "ভুল QR তথ্য";
+  } else {
+    const user = await searchUser(payload.digihealth_id);
+
+    if (!user) {
+      msg.textContent = "ব্যবহারকারী পাওয়া যায়নি";
+    } else {
+      // Redirect to profile
+      location.href = `/profile/view.html?uid=${user.uid}`;
+    }
+  }
+}
+</script>
+
+</body>
+</html>
