@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>ক্লিনিক পরিসংখ্যান</title>
+</head>
+<body style="display:flex;gap:10px;">
+
+<div id="sidebar"></div>
+
+<main style="padding:10px;flex:1;">
+  <h2>পরিসংখ্যান</h2>
+  <pre id="stats"></pre>
+</main>
+
+<script type="module">
+import { requireClinicUser, getClinicStats } from "./clinic.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth } from "../js/firebase.js";
+
+// sidebar
+const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
+document.getElementById("sidebar").innerHTML = sidebar;
+
+// auth + org
+const { profile } = await requireClinicUser();
+
+// stats
+const data = await getClinicStats(profile.organization_id);
+stats.textContent = JSON.stringify(data, null, 2);
+
+// logout
+document.getElementById("logout").onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
+};
+</script>
+
+</body>
+</html>
