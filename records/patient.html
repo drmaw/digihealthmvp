@@ -1,81 +1,150 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>আমার মেডিকেল রেকর্ড</title>
-</head>
-<body>
+  <meta charset="UTF-8" />
+  <title>আমার মেডিকেল রেকর্ড | DigiHealth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<h2>আমার মেডিকেল রেকর্ড</h2>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-<section>
-  <h3>নতুন রেকর্ড যোগ করুন</h3>
-  <input id="title" placeholder="শিরোনাম">
-  <br><br>
-  <textarea id="notes" placeholder="বিবরণ"></textarea>
-  <br><br>
-  <button id="add">আপলোড</button>
-</section>
+    /* 🔹 Firebase config */
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+      authDomain: "digihealth-65f04.firebaseapp.com",
+      projectId: "digihealth-65f04",
+      storageBucket: "digihealth-65f04.appspot.com",
+      messagingSenderId: "704628949252",
+      appId: "1:704628949252:web:b38a476bd9c4259f829051"
+    };
 
-<hr>
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-<h3>রেকর্ড তালিকা</h3>
-<ul id="list"></ul>
+    const recordsDiv = document.getElementById("records");
+    const uploadBtn = document.getElementById("uploadBtn");
 
-<script type="module">
-import { auth } from "../js/firebase.js";
-import { requireRole } from "../js/guard.js";
-import {
-  uploadRecord, listRecordsByPatient,
-  setHidden, deleteRecord
-} from "../js/records.js";
+    let currentUser;
 
-const { user } = await requireRole(["patient"]);
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/index.html";
+        return;
+      }
+      currentUser = user;
+      loadRecords();
+    });
 
-async function load() {
-  list.innerHTML = "";
-  const rows = await listRecordsByPatient(user.uid, true);
-  rows.forEach(r => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <b>${r.title}</b> ${r.hidden ? "(লুকানো)" : ""}
-      <br>${r.notes || ""}
-      <br>
-      <button data-h="${r.hidden ? "0" : "1"}" data-id="${r.id}">
-        ${r.hidden ? "দেখান" : "লুকান"}
-      </button>
-      <button data-del="${r.id}">মুছে ফেলুন</button>
-      <hr>
-    `;
-    list.appendChild(li);
-  });
-}
+    async function loadRecords() {
+      recordsDiv.innerHTML = "লোড হচ্ছে...";
+      const q = query(
+        collection(db, "patient_records"),
+        where("patient_uid", "==", currentUser.uid)
+      );
+      const snapshot = await getDocs(q);
 
-add.onclick = async () => {
-  await uploadRecord({
-    patient_uid: user.uid,
-    title: title.value,
-    notes: notes.value
-  });
-  title.value = ""; notes.value = "";
-  load();
-};
+      if (snapshot.empty) {
+        recordsDiv.innerHTML = "কোনো রেকর্ড পাওয়া যায়নি।";
+        return;
+      }
 
-list.onclick = async (e) => {
-  if (e.target.dataset.h) {
-    await setHidden(e.target.dataset.id, e.target.dataset.h === "1");
-    load();
-  }
-  if (e.target.dataset.del) {
-    if (confirm("এটি স্থায়ীভাবে মুছে যাবে। নিশ্চিত?")) {
-      await deleteRecord(e.target.dataset.del);
-      load();
+      recordsDiv.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const r = docSnap.data();
+        const div = document.createElement("div");
+        div.className = "record";
+        div.innerHTML = `
+          <strong>${r.title || "মেডিকেল ডকুমেন্ট"}</strong><br>
+          <small>${r.hidden ? "🔒 লুকানো" : "👁 দৃশ্যমান"}</small><br><br>
+          <a href="${r.file_url}" target="_blank">ডাউনলোড / দেখুন</a><br><br>
+          <button onclick="toggleHide('${docSnap.id}', ${r.hidden})">
+            ${r.hidden ? "দেখান" : "লুকান"}
+          </button>
+          <button class="danger" onclick="deleteRecord('${docSnap.id}', '${r.storage_path}')">
+            স্থায়ীভাবে মুছুন
+          </button>
+        `;
+        recordsDiv.appendChild(div);
+      });
     }
-  }
-};
 
-load();
-</script>
+    uploadBtn.onclick = async () => {
+      const fileInput = document.getElementById("file");
+      const titleInput = document.getElementById("title");
 
+      if (!fileInput.files.length) {
+        alert("ফাইল নির্বাচন করুন");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const storagePath = `records/${currentUser.uid}/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, storagePath);
+
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, "patient_records"), {
+        patient_uid: currentUser.uid,
+        title: titleInput.value || "মেডিকেল রিপোর্ট",
+        file_url: url,
+        storage_path: storagePath,
+        hidden: false,
+        createdAt: serverTimestamp()
+      });
+
+      titleInput.value = "";
+      fileInput.value = "";
+      loadRecords();
+    };
+
+    window.toggleHide = async (id, hidden) => {
+      await updateDoc(doc(db, "patient_records", id), { hidden: !hidden });
+      loadRecords();
+    };
+
+    window.deleteRecord = async (id, path) => {
+      if (!confirm("আপনি কি নিশ্চিত? এটি স্থায়ীভাবে মুছে যাবে।")) return;
+      await deleteObject(ref(storage, path));
+      await deleteDoc(doc(db, "patient_records", id));
+      loadRecords();
+    };
+  </script>
+
+  <style>
+    body { font-family: system-ui; padding: 15px; }
+    .record {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+    button {
+      padding: 6px 10px;
+      margin-right: 5px;
+    }
+    .danger {
+      background: #d32f2f;
+      color: white;
+      border: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>আমার মেডিকেল রেকর্ড</h2>
+
+  <input id="title" placeholder="ডকুমেন্টের নাম (ঐচ্ছিক)" /><br><br>
+  <input type="file" id="file" accept=".pdf,image/*" /><br><br>
+  <button id="uploadBtn">রেকর্ড আপলোড করুন</button>
+
+  <hr>
+  <div id="records"></div>
 </body>
 </html>
