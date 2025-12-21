@@ -62,12 +62,13 @@ onAuthStateChanged(auth, async (u) => {
 
   const me = snap.data();
 
-  if (me.role_id !== "manager" && me.role_id !== "assistant_manager") {
+  // ✅ FIXED ROLE CHECK
+  if (me.role_id !== "clinic_manager" && me.role_id !== "assistant_manager") {
     location.href = "/index.html";
     return;
   }
 
-  // Generate manager QR
+  // Generate QR
   generateProfileQR(
     document.getElementById("qr"),
     {
@@ -78,7 +79,7 @@ onAuthStateChanged(auth, async (u) => {
 });
 
 /* Logout */
-logout.onclick = async () => {
+document.getElementById("logout").onclick = async () => {
   await signOut(auth);
   location.href = "/index.html";
 };
