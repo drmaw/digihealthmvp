@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head><meta charset="UTF-8"><title>My Appointments</title></head>
+<body>
+
+<h3>আমার অ্যাপয়েন্টমেন্ট</h3>
+<ul id="list"></ul>
+
+<script type="module">
+import { requireRole } from "../js/guard.js";
+import { listAppointments } from "../js/appointments.js";
+
+const { user } = await requireRole(["patient"]);
+const appts = await listAppointments({ patient_uid: user.uid });
+
+appts.forEach(a => {
+  const li = document.createElement("li");
+  li.textContent = `${a.status} — ${new Date(a.scheduled_at.seconds * 1000).toLocaleString()}`;
+  list.appendChild(li);
+});
+</script>
+
+</body>
+</html>
