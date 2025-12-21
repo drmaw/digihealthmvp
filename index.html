@@ -3,55 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <title>DigiHealth Login</title>
-</head>
-<body>
 
-<!-- Language selector -->
-<div style="float:right">
-  <select id="langSwitch">
-    <option value="bn">বাংলা</option>
-    <option value="en">English</option>
-  </select>
-</div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<h2 id="title">লগইন</h2>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+      authDomain: "digihealth-65f04.firebaseapp.com",
+      projectId: "digihealth-65f04",
+      storageBucket: "digihealth-65f04.appspot.com",
+      messagingSenderId: "704628949252",
+      appId: "1:704628949252:web:b38a476bd9c4259f829051"
+    };
 
-<input id="email" placeholder="ইমেইল" />
-<br /><br />
-<input id="password" type="password" placeholder="পাসওয়ার্ড" />
-<br /><br />
-<button id="btn">লগইন</button>
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-<script type="module">
-  import { auth, db } from "./js/firebase.js";
-  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-  // Language persistence
-  const lang = localStorage.getItem("lang") || "bn";
-  document.getElementById("langSwitch").value = lang;
-  document.getElementById("langSwitch").onchange = e => {
-    localStorage.setItem("lang", e.target.value);
-    location.reload();
-  };
-
-  document.getElementById("btn").onclick = async () => {
-    try {
-      const email = document.getElementById("email").value.trim();
+    window.login = async function () {
+      const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
 
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        alert(e.message);
+      }
+    };
 
-      const snap = await getDoc(doc(db, "users", cred.user.uid));
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
 
+      const snap = await getDoc(doc(db, "users", user.uid));
       if (!snap.exists()) {
-        alert("User profile missing");
+        alert("User profile not found");
+        auth.signOut();
         return;
       }
 
-      const role = snap.data().role_id;
+      const me = snap.data();
+      const role = me.role_id;
 
-      // 🔐 ROLE ROUTING — FINAL & COMPLETE
+      // 🔴 THIS WAS MISSING BEFORE
       switch (role) {
         case "admin":
           location.href = "/admin.html";
@@ -66,21 +61,28 @@
           break;
 
         case "clinic_manager":
-        case "assistant_manager":
           location.href = "/manager.html";
           break;
 
+        case "assistant_manager":
+          location.href = "/assistant_manager.html";
+          break;
+
         default:
-          alert("Unauthorized role: " + role);
-          location.href = "/index.html";
+          alert("Unauthorized role");
+          auth.signOut();
       }
+    });
+  </script>
+</head>
 
-    } catch (err) {
-      alert(err.message);
-      console.error(err);
-    }
-  };
-</script>
+<body style="font-family: sans-serif">
+  <h2>লগইন</h2>
 
+  <input id="email" placeholder="ইমেইল" />
+  <br /><br />
+  <input id="password" type="password" placeholder="পাসওয়ার্ড" />
+  <br /><br />
+  <button onclick="login()">লগইন</button>
 </body>
 </html>
