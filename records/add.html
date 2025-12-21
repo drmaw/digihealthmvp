@@ -1,7 +1,37 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>নতুন মেডিকেল রেকর্ড</title>
+</head>
+<body>
+
+<button onclick="logout()">লগআউট</button>
+<hr>
+
+<h2>নতুন মেডিকেল রেকর্ড যোগ করুন</h2>
+
+<label>রোগীর DigiHealth ID অথবা মোবাইল নম্বর</label><br>
+<input id="patientInput" placeholder="3845735707" /><br><br>
+
+<label>রোগ নির্ণয়</label><br>
+<textarea id="diagnosis"></textarea><br><br>
+
+<label>প্রেসক্রিপশন / নোট</label><br>
+<textarea id="note"></textarea><br><br>
+
+<button id="saveBtn">সংরক্ষণ করুন</button>
+
+<p id="status"></p>
+
 <script type="module">
-/* ===== Imports (MUST be first) ===== */
+/* ---------------- Firebase imports ---------------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+  getAuth,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,
   collection,
@@ -12,7 +42,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* ===== Firebase config ===== */
+/* ---------------- Firebase config ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
   authDomain: "digihealth-65f04.firebaseapp.com",
@@ -22,28 +52,24 @@ const firebaseConfig = {
   appId: "1:704628949252:web:b38a476bd9c4259f829051"
 };
 
-/* ===== Init ===== */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ===== UI ===== */
 const statusBox = document.getElementById("status");
-const saveBtn = document.getElementById("saveBtn");
 
-let currentUser = null;
-
-/* ===== Auth check ===== */
+/* ---------------- Auth guard ---------------- */
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    statusBox.innerText = "লগইন করা নেই";
+    location.href = "/index.html";
     return;
   }
-  currentUser = user;
+
+  document.getElementById("saveBtn").onclick = () => saveRecord(user);
 });
 
-/* ===== Save medical record ===== */
-saveBtn.onclick = async () => {
+/* ---------------- Save record ---------------- */
+async function saveRecord(user) {
   statusBox.innerText = "খোঁজা হচ্ছে...";
 
   const input = document.getElementById("patientInput").value.trim();
@@ -57,10 +83,14 @@ saveBtn.onclick = async () => {
 
   try {
     const usersRef = collection(db, "users");
+    let q;
 
-    const q = isNaN(input)
-      ? query(usersRef, where("phone", "==", input))
-      : query(usersRef, where("health_id_10", "==", input));
+    // Detect DigiHealth ID (10 digits) vs phone
+    if (/^\d{10}$/.test(input)) {
+      q = query(usersRef, where("health_id_10", "==", input));
+    } else {
+      q = query(usersRef, where("phone", "==", input));
+    }
 
     const snap = await getDocs(q);
 
@@ -73,17 +103,31 @@ saveBtn.onclick = async () => {
 
     await addDoc(collection(db, "patient_records"), {
       patient_uid: patientDoc.id,
-      diagnosis,
-      note,
-      created_by: currentUser.uid,
+      diagnosis: diagnosis,
+      note: note,
+      created_by: user.uid,
       created_at: serverTimestamp()
     });
 
-    statusBox.innerText = "রেকর্ড সংরক্ষণ হয়েছে";
+    statusBox.innerText = "রেকর্ড সফলভাবে সংরক্ষণ হয়েছে";
+
+    // clear form
+    document.getElementById("diagnosis").value = "";
+    document.getElementById("note").value = "";
 
   } catch (err) {
     console.error(err);
-    statusBox.innerText = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
+    statusBox.innerText = "সমস্যা হয়েছে, কনসোল দেখুন";
   }
+}
+
+/* ---------------- Logout ---------------- */
+window.logout = function () {
+  signOut(auth).then(() => {
+    location.href = "/index.html";
+  });
 };
 </script>
+
+</body>
+</html>
