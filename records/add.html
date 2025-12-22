@@ -1,49 +1,95 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>Add Medical Record</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Add Medical Record</title>
 </head>
 <body>
 
-<h2>নতুন মেডিকেল রেকর্ড যোগ করুন</h2>
+<h2>Add Medical Record / Upload Document</h2>
 
-<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
-<br><br>
+<section>
+  <input id="patientInput" placeholder="DigiHealth ID / Mobile" />
+  <button id="scanBtn">Scan QR</button>
+  <div id="qrBox"></div>
+</section>
 
-<input id="title" placeholder="রোগ নির্ণয় / শিরোনাম">
-<br><br>
+<hr />
 
-<textarea id="notes" placeholder="প্রেসক্রিপশন / নোট"></textarea>
-<br><br>
+<section id="doctorFields" style="display:none;">
+  <h3>Doctor Entry</h3>
+  <select id="recordType">
+    <option value="general">General</option>
+    <option value="prescription">Prescription</option>
+    <option value="report">Report</option>
+    <option value="lab">Lab</option>
+    <option value="surgery">Surgery</option>
+  </select><br><br>
 
-<button id="saveBtn">সংরক্ষণ করুন</button>
+  <input id="title" placeholder="Title" /><br><br>
+  <textarea id="notes" placeholder="Notes"></textarea><br><br>
+</section>
+
+<section id="repFields" style="display:none;">
+  <h3>Representative Upload</h3>
+  <input type="file" id="fileInput" accept="image/*,.pdf" />
+</section>
+
+<br />
+<button id="saveBtn">Save</button>
 <p id="status"></p>
 
+<hr />
+<button id="logoutBtn">Logout</button>
+
 <script type="module">
-import { db } from "../js/firebase.js";
-import { requireRole } from "../js/auth.js";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  where,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db, storage } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    where,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import {
+    ref,
+    uploadBytes,
+    getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+  import { startQRScan } from "/js/qr_scan.js";
 
-const status = document.getElementById("status");
+  let currentUser = null;
 
-requireRole(["doctor"], async (doctor) => {
+  requireAuth(
+    ["doctor", "representative"],
+    (profile) => {
+      currentUser = profile;
+
+      if (profile.role_id === "doctor") {
+        document.getElementById("doctorFields").style.display = "block";
+      } else {
+        document.getElementById("repFields").style.display = "block";
+      }
+    }
+  );
+
+  document.getElementById("scanBtn").onclick = () => {
+    startQRScan("qrBox", (value) => {
+      document.getElementById("patientInput").value = value;
+    });
+  };
+
   document.getElementById("saveBtn").onclick = async () => {
-    status.innerText = "সংরক্ষণ হচ্ছে...";
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = "Processing...";
 
-    const input = patientInput.value.trim();
-    const titleVal = title.value.trim();
-    const notesVal = notes.value.trim();
-
-    if (!input || !titleVal) {
-      status.innerText = "সব তথ্য দিন";
+    const input = document.getElementById("patientInput").value.trim();
+    if (!input) {
+      statusEl.innerText = "Patient ID or Mobile required";
       return;
     }
 
@@ -56,35 +102,70 @@ requireRole(["doctor"], async (doctor) => {
 
       const snap = await getDocs(q);
       if (snap.empty) {
-        status.innerText = "রোগী পাওয়া যায়নি";
+        statusEl.innerText = "Patient not found";
         return;
       }
 
       const patientUid = snap.docs[0].id;
 
-      // Create record
+      // Doctor flow
+      if (currentUser.role_id === "doctor") {
+        await addDoc(collection(db, "patient_records"), {
+          patient_uid: patientUid,
+          created_by_uid: currentUser.uid,
+          created_by_role: "doctor",
+          record_type: document.getElementById("recordType").value,
+          title: document.getElementById("title").value || "",
+          notes: document.getElementById("notes").value || "",
+          visibility: "public",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+
+        statusEl.innerText = "Record added successfully";
+        return;
+      }
+
+      // Representative flow
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) {
+        statusEl.innerText = "Please select a file";
+        return;
+      }
+
+      const fileRef = ref(
+        storage,
+        `uploads/${patientUid}/${Date.now()}_${file.name}`
+      );
+
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+
       await addDoc(collection(db, "patient_records"), {
         patient_uid: patientUid,
-        created_by_uid: doctor.uid,
-        created_by_role: "doctor",
-        record_type: "general",
-        title: titleVal,
-        notes: notesVal,
-        visibility: "public",   // default
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp()
+        created_by_uid: currentUser.uid,
+        created_by_role: "representative",
+        record_type: "external_upload",
+        title: "Uploaded document",
+        notes: "",
+        file_url: url,
+        visibility: "public",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
 
-      status.innerText = "রেকর্ড সংরক্ষিত হয়েছে";
-      title.value = "";
-      notes.value = "";
+      statusEl.innerText = "Document uploaded successfully";
 
     } catch (e) {
       console.error(e);
-      status.innerText = "সমস্যা হয়েছে";
+      statusEl.innerText = "Error occurred";
     }
   };
-});
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
