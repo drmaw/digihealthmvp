@@ -3,64 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <title>Patient Dashboard</title>
-
-  <!-- QR generator -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
-  <!-- Firebase -->
-  <script type="module" src="/firebase.js"></script>
-  <script type="module" src="/js/auth_guard.js"></script>
-
-  <style>
-    #qr-box {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      display: inline-block;
-    }
-  </style>
 </head>
-
 <body>
-  <h2>Patient Dashboard</h2>
 
-  <p><strong>My DigiHealth ID:</strong></p>
-  <p id="healthId">Loading...</p>
+<h2>Patient Dashboard</h2>
 
-  <h3>My QR Code</h3>
-  <div id="qr-box"></div>
+<p>
+  <strong>My DigiHealth ID:</strong>
+  <span id="healthId">Loading...</span>
+</p>
 
-  <br /><br />
-  <button onclick="logout()">Logout</button>
+<h3>My QR Code</h3>
+<img id="qrImage" width="180" height="180" alt="QR Code will appear here" />
 
-  <script type="module">
-    import { auth, db } from "/firebase.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+<br><br>
+<button id="logoutBtn">Logout</button>
 
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
+<script type="module">
+  import { auth, db } from "/js/firebase.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { generateProfileQR } from "/js/qr.js";
 
+  const healthIdEl = document.getElementById("healthId");
+  const qrImg = document.getElementById("qrImage");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      window.location.href = "/index.html";
+      return;
+    }
+
+    try {
       const snap = await getDoc(doc(db, "users", user.uid));
-      if (!snap.exists()) return;
+
+      if (!snap.exists()) {
+        healthIdEl.textContent = "Profile not found";
+        return;
+      }
 
       const data = snap.data();
 
-      const healthId = data.health_id_10;
-      document.getElementById("healthId").innerText = healthId;
+      if (!data.health_id_10) {
+        healthIdEl.textContent = "Health ID missing";
+        return;
+      }
 
-      // Generate QR
-      new QRCode(document.getElementById("qr-box"), {
-        text: healthId,
-        width: 220,
-        height: 220
+      // 1️⃣ Show ID
+      healthIdEl.textContent = data.health_id_10;
+
+      // 2️⃣ Generate QR
+      generateProfileQR(qrImg, {
+        health_id_10: data.health_id_10
       });
-    });
 
-    window.logout = async () => {
-      await signOut(auth);
-      window.location.href = "/index.html";
-    };
-  </script>
+    } catch (err) {
+      console.error(err);
+      healthIdEl.textContent = "Error loading profile";
+    }
+  });
+
+  logoutBtn.onclick = async () => {
+    await signOut(auth);
+    window.location.href = "/index.html";
+  };
+</script>
+
 </body>
 </html>
