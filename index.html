@@ -1,34 +1,30 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>DigiHealth Login</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth – Login</title>
 </head>
 <body>
 
 <h2>DigiHealth Login</h2>
 
-<input id="email" type="email" placeholder="Email"><br><br>
-<input id="password" type="password" placeholder="Password"><br><br>
-<button id="loginBtn">Login</button>
+<input id="email" type="email" placeholder="Email" /><br><br>
+<input id="password" type="password" placeholder="Password" /><br><br>
 
+<button id="loginBtn">Login</button>
 <p id="status"></p>
 
 <script type="module">
-  import { auth, db } from "./js/firebase.js";
+  import { auth, db } from "/js/firebase.js";
   import {
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import {
-    doc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { doc, getDoc } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const statusEl = document.getElementById("status");
-  const emailEl = document.getElementById("email");
-  const passwordEl = document.getElementById("password");
 
   // Persist login (important for mobile)
   await setPersistence(auth, browserLocalPersistence);
@@ -36,61 +32,60 @@
   document.getElementById("loginBtn").onclick = async () => {
     statusEl.innerText = "Logging in...";
 
-    const email = emailEl.value.trim();
-    const password = passwordEl.value;
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
     if (!email || !password) {
-      statusEl.innerText = "Email and password required";
+      statusEl.innerText = "Email এবং Password প্রয়োজন";
       return;
     }
 
     try {
-      // 1️⃣ Firebase Auth
+      // 1️⃣ Auth
       const res = await signInWithEmailAndPassword(auth, email, password);
 
-      // 2️⃣ Load user profile
+      // 2️⃣ Load profile
       const snap = await getDoc(doc(db, "users", res.user.uid));
-
       if (!snap.exists()) {
-        statusEl.innerText = "User profile not found";
+        statusEl.innerText = "User profile পাওয়া যায়নি";
         return;
       }
 
       const profile = snap.data();
 
-      // 3️⃣ Status check
-      if (profile.status !== "active") {
+      // 3️⃣ Normalize status
+      const status = (profile.status || "").trim().toLowerCase();
+      if (status !== "active") {
         statusEl.innerText = "Account inactive";
         return;
       }
 
-      // 4️⃣ Approval rules
+      // 4️⃣ Doctor approval gate
       if (
-        (profile.role_id === "doctor" || profile.role_id === "clinic_manager")
-        && profile.approved !== true
+        profile.role_id === "doctor" &&
+        profile.approved !== true
       ) {
-        statusEl.innerText = "Account pending admin approval";
+        statusEl.innerText = "Doctor account pending admin approval";
         return;
       }
 
-      // 5️⃣ Role routing (STRICT)
+      // 5️⃣ Route by role
       switch (profile.role_id) {
         case "admin":
           location.href = "/admin.html";
           break;
-
         case "doctor":
           location.href = "/doctor.html";
           break;
-
         case "clinic_manager":
           location.href = "/manager.html";
           break;
-
         case "assistant_manager":
           location.href = "/assistant_manager.html";
           break;
-
+        case "representative":
+          location.href = "/representative.html";
+          break;
         case "patient":
         default:
           location.href = "/patient.html";
