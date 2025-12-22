@@ -1,39 +1,39 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <title>QR Scan</title>
+  <meta charset="UTF-8">
+  <title>Scan QR — DigiHealth</title>
 </head>
 <body>
 
-<h3>QR স্ক্যান ফলাফল</h3>
-<pre id="msg"></pre>
+<h2>Scan QR Code</h2>
+<p id="msg">Allow camera access</p>
 
-<script type="module">
-import { parseQRPayload } from "../js/qr.js";
-import { searchUser } from "../js/search.js";
+<video id="video" width="300" autoplay></video><br><br>
+<button id="closeBtn">Close</button>
 
-const params = new URLSearchParams(window.location.search);
-const data = params.get("data");
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-if (!data) {
-  msg.textContent = "QR তথ্য পাওয়া যায়নি";
-} else {
-  const payload = parseQRPayload(data);
+<script>
+const msg = document.getElementById("msg");
 
-  if (!payload || !payload.digihealth_id) {
-    msg.textContent = "ভুল QR তথ্য";
-  } else {
-    const user = await searchUser(payload.digihealth_id);
+const qr = new Html5Qrcode("video");
 
-    if (!user) {
-      msg.textContent = "ব্যবহারকারী পাওয়া যায়নি";
-    } else {
-      // Redirect to profile
-      location.href = `/profile/view.html?uid=${user.uid}`;
-    }
-  }
-}
+qr.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  (text) => {
+    msg.innerText = "Scanned!";
+    localStorage.setItem("qr_result", text);
+    qr.stop();
+    window.close();
+  },
+  () => {}
+).catch(() => {
+  msg.innerText = "Camera error";
+});
+
+closeBtn.onclick = () => window.close();
 </script>
 
 </body>
