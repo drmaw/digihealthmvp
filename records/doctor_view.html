@@ -1,106 +1,156 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>Doctor – Patient Records</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Doctor Record View</title>
 </head>
 <body>
 
-<h2>রোগীর মেডিকেল রেকর্ড দেখুন</h2>
+<h2>Search Patient Records</h2>
 
-<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
-<button id="searchBtn">খুঁজুন</button>
+<section>
+  <input id="patientInput" placeholder="DigiHealth ID / Mobile" />
+  <button id="scanBtn">Scan QR</button>
+  <div id="qrBox"></div>
+</section>
 
 <p id="status"></p>
-<hr>
+<hr />
 
-<div id="records"></div>
+<section id="patientBox" style="display:none;">
+  <h3>Patient Profile</h3>
+  <div id="profile"></div>
+
+  <div id="redFlagBox" style="display:none;">
+    <p style="color:red;">⚠️ RED FLAG</p>
+    <p id="redFlagNote"></p>
+  </div>
+
+  <hr />
+  <h3>Medical Records</h3>
+  <div id="records"></div>
+</section>
+
+<hr />
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-  import { db } from "../js/firebase.js";
-  import { requireRole } from "../js/auth.js";
-
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import {
     collection,
+    getDocs,
     query,
-    where,
-    getDocs
+    where
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { startQRScan } from "/js/qr_scan.js";
+  import { getVisibleRecordsForPatient } from "/js/records_access.js";
+  import {
+    canSeeRedFlag,
+    canSeeRedFlagNote
+  } from "/js/red_flag_access.js";
 
-  const status = document.getElementById("status");
-  const recordsBox = document.getElementById("records");
+  let currentUser = null;
 
-  requireRole(["doctor"], (doctor) => {
+  requireAuth(["doctor"], (profile) => {
+    currentUser = profile;
+  });
 
-    document.getElementById("searchBtn").onclick = async () => {
-      recordsBox.innerHTML = "";
-      status.innerText = "খোঁজা হচ্ছে...";
+  document.getElementById("scanBtn").onclick = () => {
+    startQRScan("qrBox", (value) => {
+      document.getElementById("patientInput").value = value;
+    });
+  };
 
-      const input = patientInput.value.trim();
-      if (!input) {
-        status.innerText = "আইডি বা নম্বর দিন";
+  document.getElementById("patientInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") searchPatient();
+  });
+
+  async function searchPatient() {
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = "Searching...";
+    document.getElementById("records").innerHTML = "";
+    document.getElementById("patientBox").style.display = "none";
+
+    const input = document.getElementById("patientInput").value.trim();
+    if (!input) {
+      statusEl.innerText = "Enter ID or mobile";
+      return;
+    }
+
+    try {
+      const usersRef = collection(db, "users");
+      const q = isNaN(input)
+        ? query(usersRef, where("phone", "==", input))
+        : query(usersRef, where("health_id_10", "==", input));
+
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        statusEl.innerText = "Patient not found";
         return;
       }
 
-      try {
-        /* 1. Find patient */
-        const usersRef = collection(db, "users");
-        const q = isNaN(input)
-          ? query(usersRef, where("phone", "==", input))
-          : query(usersRef, where("health_id_10", "==", input));
+      const patientDoc = snap.docs[0];
+      const patient = { uid: patientDoc.id, ...patientDoc.data() };
 
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          status.innerText = "রোগী পাওয়া যায়নি";
-          return;
+      // Show profile (read-only)
+      document.getElementById("profile").innerHTML = `
+        <p><b>Name:</b> ${patient.name || "-"}</p>
+        <p><b>Gender:</b> ${patient.gender || "-"}</p>
+        <p><b>DOB:</b> ${patient.date_of_birth || "-"}</p>
+        <p><b>Occupation:</b> ${patient.occupation || "-"}</p>
+      `;
+
+      // Red flag
+      if (patient.red_flag && canSeeRedFlag(currentUser)) {
+        document.getElementById("redFlagBox").style.display = "block";
+        if (canSeeRedFlagNote(currentUser)) {
+          document.getElementById("redFlagNote").innerText =
+            patient.red_flag_note || "";
         }
-
-        const patientUid = snap.docs[0].id;
-
-        /* 2. Load records (exclude private) */
-        const recordsRef = collection(db, "patient_records");
-        const rq = query(
-          recordsRef,
-          where("patient_uid", "==", patientUid),
-          where("visibility", "!=", "private")
-        );
-
-        const rsnap = await getDocs(rq);
-
-        if (rsnap.empty) {
-          status.innerText = "কোনো রেকর্ড নেই";
-          return;
-        }
-
-        status.innerText = "রেকর্ড পাওয়া গেছে";
-
-        rsnap.forEach(doc => {
-          const r = doc.data();
-          const div = document.createElement("div");
-
-          div.style.border = "1px solid #ccc";
-          div.style.padding = "10px";
-          div.style.margin = "10px 0";
-
-          div.innerHTML = `
-            <b>টাইপ:</b> ${r.record_type}<br>
-            <b>শিরোনাম:</b> ${r.title || ""}<br>
-            <b>নোট:</b><br>${r.notes || ""}<br>
-            <small>
-              ${r.created_at?.toDate ? r.created_at.toDate() : ""}
-            </small>
-          `;
-
-          recordsBox.appendChild(div);
-        });
-
-      } catch (e) {
-        console.error(e);
-        status.innerText = "সমস্যা হয়েছে";
+      } else {
+        document.getElementById("redFlagBox").style.display = "none";
       }
-    };
 
-  });
+      // Records
+      const records = await getVisibleRecordsForPatient(
+        currentUser,
+        patient.uid
+      );
+
+      if (records.length === 0) {
+        document.getElementById("records").innerText =
+          "No visible records";
+      } else {
+        records.forEach(r => {
+          const div = document.createElement("div");
+          div.style.border = "1px solid #ccc";
+          div.style.margin = "8px";
+          div.style.padding = "8px";
+          div.innerHTML = `
+            <b>${r.record_type}</b><br/>
+            <b>${r.title || ""}</b><br/>
+            ${r.notes || ""}
+          `;
+          document.getElementById("records").appendChild(div);
+        });
+      }
+
+      document.getElementById("patientBox").style.display = "block";
+      statusEl.innerText = "Done";
+
+    } catch (e) {
+      console.error(e);
+      statusEl.innerText = "Error occurred";
+    }
+  }
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
