@@ -1,33 +1,52 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>Patient Dashboard</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Patient Dashboard</title>
 </head>
 <body>
 
-<h2>রোগী ড্যাশবোর্ড</h2>
+<h2>Patient Dashboard</h2>
 
-<button onclick="location.href='/records/patient_view.html'">
-  📄 আমার মেডিকেল রেকর্ড
-</button>
-<br><br>
+<nav>
+  <ul>
+    <li><a href="/profile/view.html">My Profile</a></li>
+    <li><a href="/appointments/my.html">My Appointments</a></li>
+    <li><a href="/records/patient_view.html">My Medical Records</a></li>
+  </ul>
+</nav>
 
-<button onclick="location.href='/appointments/patient.html'">
-  📅 আমার অ্যাপয়েন্টমেন্ট
-</button>
-<br><br>
+<hr />
 
-<button onclick="location.href='/profile/patient_profile.html'">
-  ⚙️ প্রাইভেসি ও প্রোফাইল
-</button>
-<br><br>
+<section>
+  <h3>My DigiHealth ID</h3>
+  <p id="healthId">Loading...</p>
+</section>
 
-<button id="logoutBtn">লগআউট</button>
+<hr />
+
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-import { logout } from "./js/auth.js";
-document.getElementById("logoutBtn").onclick = logout;
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  // 🔐 Guard: Patient (everyone has patient access)
+  requireAuth(
+    ["patient", "doctor", "clinic_manager", "assistant_manager", "representative"],
+    async (profile) => {
+      document.getElementById("healthId").innerText =
+        profile.health_id_10 || "Not assigned";
+    }
+  );
+
+  // Logout
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
