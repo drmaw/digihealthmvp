@@ -1,6 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// firebase.js (FINAL)
+
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
@@ -11,6 +13,11 @@ const firebaseConfig = {
   appId: "1:704628949252:web:b38a476bd9c4259f829051"
 };
 
+// Initialize Firebase
 export const app = initializeApp(firebaseConfig);
+
+// Auth
 export const auth = getAuth(app);
+
+// Firestore (THIS WAS MISSING)
 export const db = getFirestore(app);
