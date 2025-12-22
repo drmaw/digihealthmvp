@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>আমার অর্গানাইজেশনসমূহ</title>
+</head>
+<body>
+
+<h3>আমি যে অর্গানাইজেশনগুলোতে কাজ করি</h3>
+
+<div id="list"></div>
+<pre id="msg"></pre>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  /* ---------- Firebase config ---------- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+    authDomain: "digihealth-65f04.firebaseapp.com",
+    projectId: "digihealth-65f04",
+    storageBucket: "digihealth-65f04.appspot.com",
+    messagingSenderId: "704628949252",
+    appId: "1:704628949252:web:b38a476bd9c4259f829051"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const list = document.getElementById("list");
+  const msg = document.getElementById("msg");
+
+  async function loadOrganizations(doctorUid) {
+    list.innerHTML = "";
+    msg.textContent = "লোড হচ্ছে...";
+
+    const mapRef = collection(db, "organization_doctors");
+    const q = query(
+      mapRef,
+      where("doctor_uid", "==", doctorUid),
+      where("status", "==", "active")
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      msg.textContent = "কোন অর্গানাইজেশন পাওয়া যায়নি";
+      return;
+    }
+
+    const orgIds = snap.docs.map(d => d.data().organization_id);
+
+    const orgRef = collection(db, "organizations");
+    const orgSnap = await getDocs(orgRef);
+
+    msg.textContent = "";
+
+    orgSnap.docs.forEach(o => {
+      if (!orgIds.includes(o.id)) return;
+
+      const org = o.data();
+      const div = document.createElement("div");
+
+      div.style.border = "1px solid #ccc";
+      div.style.padding = "10px";
+      div.style.marginBottom = "10px";
+
+      div.innerHTML = `
+        <b>${org.name}</b><br>
+        ধরন: ${org.organization_type}<br>
+        স্ট্যাটাস: ${org.status}
+      `;
+
+      list.appendChild(div);
+    });
+  }
+
+  onAuthStateChanged(auth, user => {
+    if (!user) {
+      msg.textContent = "লগইন করা নেই";
+      return;
+    }
+
+    loadOrganizations(user.uid);
+  });
+</script>
+
+</body>
+</html>
