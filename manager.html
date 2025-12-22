@@ -1,33 +1,80 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>রোগীর রেকর্ড (ক্লিনিক)</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Clinic Manager Dashboard</title>
 </head>
 <body>
 
-<h2>রোগীর রেকর্ড (রিড-অনলি)</h2>
+<h2>Clinic Manager Dashboard</h2>
 
-<input id="pid" placeholder="Patient UID">
-<button id="load">লোড</button>
+<div id="noOrgBox" style="display:none;">
+  <p>আপনার সাথে কোনো প্রতিষ্ঠান যুক্ত নেই।</p>
+  <p>নতুন প্রতিষ্ঠান তৈরি করতে নিচের লিঙ্ক ব্যবহার করুন।</p>
+  <a href="/organizations/create.html">Create Organization</a>
+</div>
 
-<ul id="list"></ul>
+<div id="managerContent" style="display:none;">
+  <nav>
+    <ul>
+      <li><a href="/organizations/dashboard.html">Organization Dashboard</a></li>
+      <li><a href="/appointments/my.html">Appointments</a></li>
+      <li><a href="/organizations/doctors.html">Doctors</a></li>
+      <li><a href="/organizations/staff.html">Staff</a></li>
+    </ul>
+  </nav>
+
+  <hr />
+
+  <section>
+    <h3>Organization Info</h3>
+    <div id="orgInfo">Loading...</div>
+  </section>
+</div>
+
+<hr />
+
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-import { requireRole } from "../js/guard.js";
-import { listRecordsByPatient } from "../js/records.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { doc, getDoc } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-await requireRole(["clinic_manager","assistant_manager"]);
+  // 🔐 Guard: Clinic Manager only
+  requireAuth(["clinic_manager"], async (profile) => {
 
-load.onclick = async () => {
-  list.innerHTML = "";
-  const rows = await listRecordsByPatient(pid.value, false);
-  rows.forEach(r => {
-    const li = document.createElement("li");
-    li.innerHTML = `<b>${r.title}</b><br>${r.notes || ""}<hr>`;
-    list.appendChild(li);
+    // No organization yet
+    if (!profile.organization_id) {
+      document.getElementById("noOrgBox").style.display = "block";
+      return;
+    }
+
+    document.getElementById("managerContent").style.display = "block";
+
+    // Load organization info
+    const snap = await getDoc(doc(db, "organizations", profile.organization_id));
+    if (!snap.exists()) {
+      document.getElementById("orgInfo").innerText = "প্রতিষ্ঠান পাওয়া যায়নি";
+      return;
+    }
+
+    const org = snap.data();
+    document.getElementById("orgInfo").innerHTML = `
+      <p><b>Name:</b> ${org.name}</p>
+      <p><b>Status:</b> ${org.status}</p>
+      <p><b>Contact:</b> ${org.contact_phone || "-"}</p>
+    `;
   });
-};
+
+  // Logout
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
