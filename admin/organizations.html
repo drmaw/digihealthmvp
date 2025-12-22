@@ -1,25 +1,24 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Admin — Organization Approvals</title>
 </head>
 <body>
 
-<h2>Pending Organization Requests</h2>
+<h2>Pending Organization Approvals</h2>
 <p id="status">Loading...</p>
 
 <table border="1" cellpadding="6">
   <thead>
     <tr>
       <th>Name</th>
-      <th>Reg No</th>
-      <th>Owner UID</th>
       <th>License</th>
+      <th>Owner UID</th>
       <th>Action</th>
     </tr>
   </thead>
-  <tbody id="orgTable"></tbody>
+  <tbody id="orgList"></tbody>
 </table>
 
 <hr>
@@ -34,22 +33,21 @@
     where,
     getDocs,
     updateDoc,
-    doc
+    doc,
+    serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { signOut } from
     "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
   const statusEl = document.getElementById("status");
-  const table = document.getElementById("orgTable");
+  const listEl = document.getElementById("orgList");
 
   // 🔐 Admin only
-  requireAuth(["admin"], async () => {
-    loadPending();
-  });
+  requireAuth(["admin"], () => loadPending());
 
   async function loadPending() {
-    table.innerHTML = "";
     statusEl.innerText = "Loading pending organizations...";
+    listEl.innerHTML = "";
 
     const q = query(
       collection(db, "organizations"),
@@ -59,7 +57,7 @@
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      statusEl.innerText = "No pending organizations";
+      statusEl.innerText = "No pending organizations.";
       return;
     }
 
@@ -67,49 +65,71 @@
 
     snap.forEach(docSnap => {
       const org = docSnap.data();
-
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
         <td>${org.name}</td>
-        <td>${org.registration_no || "-"}</td>
-        <td>${org.owner_uid}</td>
         <td>
           <a href="${org.license_image_url}" target="_blank">View</a>
         </td>
+        <td>${org.owner_uid}</td>
         <td>
-          <button data-id="${docSnap.id}" data-owner="${org.owner_uid}">
+          <button data-id="${docSnap.id}" data-owner="${org.owner_uid}" class="approve">
             Approve
+          </button>
+          <button data-id="${docSnap.id}" class="reject">
+            Reject
           </button>
         </td>
       `;
 
-      tr.querySelector("button").onclick = approveOrg;
-      table.appendChild(tr);
+      listEl.appendChild(tr);
     });
+
+    bindActions();
   }
 
-  async function approveOrg(e) {
-    const orgId = e.target.dataset.id;
-    const ownerUid = e.target.dataset.owner;
+  function bindActions() {
+    document.querySelectorAll(".approve").forEach(btn => {
+      btn.onclick = async () => {
+        const orgId = btn.dataset.id;
+        const ownerUid = btn.dataset.owner;
 
-    if (!confirm("Approve this organization?")) return;
+        btn.disabled = true;
+        btn.innerText = "Approving...";
 
-    // 1️⃣ Activate organization
-    await updateDoc(doc(db, "organizations", orgId), {
-      status: "active"
+        // 1️⃣ Activate organization
+        await updateDoc(doc(db, "organizations", orgId), {
+          status: "active",
+          approvedAt: serverTimestamp()
+        });
+
+        // 2️⃣ Promote owner to clinic manager
+        await updateDoc(doc(db, "users", ownerUid), {
+          role_id: "clinic_manager",
+          is_org_owner: true,
+          organization_id: orgId,
+          status: "active"
+        });
+
+        loadPending();
+      };
     });
 
-    // 2️⃣ Promote user to clinic_manager
-    await updateDoc(doc(db, "users", ownerUid), {
-      role_id: "clinic_manager",
-      approved: true,
-      is_org_owner: true,
-      organization_id: orgId
-    });
+    document.querySelectorAll(".reject").forEach(btn => {
+      btn.onclick = async () => {
+        const orgId = btn.dataset.id;
 
-    alert("Organization approved");
-    loadPending();
+        btn.disabled = true;
+        btn.innerText = "Rejected";
+
+        await updateDoc(doc(db, "organizations", orgId), {
+          status: "rejected"
+        });
+
+        loadPending();
+      };
+    });
   }
 
   document.getElementById("logoutBtn").onclick = async () => {
