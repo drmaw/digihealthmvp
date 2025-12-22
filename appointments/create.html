@@ -1,58 +1,157 @@
 <!DOCTYPE html>
-<html langlang="bn">
-<head><meta charset="UTF-8"><title>Create Appointment</title></head>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Create Appointment</title>
+</head>
 <body>
 
 <h3>অ্যাপয়েন্টমেন্ট তৈরি করুন</h3>
 
-<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
-<input id="doctorInput" placeholder="Doctor DigiHealth ID / Mobile (optional)">
-<input id="dateInput" type="datetime-local">
+<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile" />
+<br><br>
+
+<input id="doctorInput" placeholder="Doctor DigiHealth ID / Mobile (optional)" />
+<br><br>
+
+<input id="dateInput" type="datetime-local" />
+<br><br>
+
 <button id="createBtn">Create</button>
 
 <pre id="msg"></pre>
 
 <script type="module">
-import { requireRole } from "../js/guard.js";
-import { searchUser } from "../js/search.js";
-import { createAppointment } from "../js/appointments.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const { user, profile } = await requireRole([
-  "patient",
-  "doctor",
-  "manager",
-  "assistant_manager"
-]);
+  /* ---------- Firebase Config ---------- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+    authDomain: "digihealth-65f04.firebaseapp.com",
+    projectId: "digihealth-65f04",
+    storageBucket: "digihealth-65f04.appspot.com",
+    messagingSenderId: "704628949252",
+    appId: "1:704628949252:web:b38a476bd9c4259f829051"
+  };
 
-createBtn.onclick = async () => {
-  msg.textContent = "";
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-  const patient = await searchUser(patientInput.value);
-  if (!patient) {
-    msg.textContent = "Patient not found";
-    return;
+  const msg = document.getElementById("msg");
+  const createBtn = document.getElementById("createBtn");
+
+  /* ---------- Helpers ---------- */
+  async function findUser(input) {
+    const usersRef = collection(db, "users");
+
+    const q = isNaN(input)
+      ? query(usersRef, where("phone", "==", input))
+      : query(usersRef, where("health_id_10", "==", input));
+
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    return { uid: snap.docs[0].id, ...snap.docs[0].data() };
   }
 
-  let doctor = null;
-  if (doctorInput.value.trim()) {
-    doctor = await searchUser(doctorInput.value);
-    if (!doctor) {
-      msg.textContent = "Doctor not found";
+  async function doctorBusy(doctor_uid, scheduled_at) {
+    const ref = collection(db, "appointments");
+    const q = query(
+      ref,
+      where("doctor_uid", "==", doctor_uid),
+      where("scheduled_at", "==", scheduled_at)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
+  }
+
+  /* ---------- Auth Guard ---------- */
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      msg.textContent = "লগইন করা নেই";
       return;
     }
-  }
 
-  await createAppointment({
-    patient_uid: patient.uid,
-    doctor_uid: doctor ? doctor.uid : null,
-    organization_id: profile.organization_id || null,
-    scheduled_at: new Date(dateInput.value),
-    created_by_uid: user.uid,
-    created_by_role: profile.role_id
+    createBtn.onclick = async () => {
+      msg.textContent = "খোঁজা হচ্ছে...";
+
+      const patientVal = patientInput.value.trim();
+      const doctorVal = doctorInput.value.trim();
+      const dateVal = dateInput.value;
+
+      if (!patientVal || !dateVal) {
+        msg.textContent = "রোগী এবং সময় অবশ্যই দিতে হবে";
+        return;
+      }
+
+      try {
+        /* ---------- Find patient ---------- */
+        const patient = await findUser(patientVal);
+        if (!patient) {
+          msg.textContent = "রোগী পাওয়া যায়নি";
+          return;
+        }
+
+        /* ---------- Find doctor (optional) ---------- */
+        let doctor = null;
+        if (doctorVal) {
+          doctor = await findUser(doctorVal);
+          if (!doctor || doctor.role_id !== "doctor") {
+            msg.textContent = "ডাক্তার পাওয়া যায়নি";
+            return;
+          }
+
+          const busy = await doctorBusy(
+            doctor.uid,
+            new Date(dateVal)
+          );
+
+          if (busy) {
+            msg.textContent = "এই সময়ে ডাক্তার ব্যস্ত আছেন";
+            return;
+          }
+        }
+
+        /* ---------- Create appointment ---------- */
+        await addDoc(collection(db, "appointments"), {
+          patient_uid: patient.uid,
+          doctor_uid: doctor ? doctor.uid : null,
+          organization_id: patient.organization_id || null,
+
+          appointment_date: dateVal.split("T")[0],
+          appointment_time: dateVal.split("T")[1],
+
+          status: "requested",
+
+          created_by_uid: user.uid,
+          created_by_role: patient.role_id || "patient",
+
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp()
+        });
+
+        msg.textContent = "অ্যাপয়েন্টমেন্ট তৈরি হয়েছে";
+
+      } catch (e) {
+        console.error(e);
+        msg.textContent = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
+      }
+    };
   });
-
-  msg.textContent = "Appointment created";
-};
 </script>
 
 </body>
