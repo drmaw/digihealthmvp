@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>অর্গানাইজেশন অ্যাপয়েন্টমেন্ট</title>
+</head>
+<body>
+
+<h3>অর্গানাইজেশন থেকে অ্যাপয়েন্টমেন্ট</h3>
+
+<!-- Patient search -->
+<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
+<br><br>
+
+<button id="findPatientBtn">রোগী খুঁজুন</button>
+
+<p id="patientStatus"></p>
+
+<hr>
+
+<!-- Doctor dropdown -->
+<label>ডাক্তার নির্বাচন করুন</label><br>
+<select id="doctorSelect">
+  <option value="">ডাক্তার নির্বাচন করুন</option>
+</select>
+
+<br><br>
+
+<label>তারিখ ও সময়</label><br>
+<input id="dateInput" type="datetime-local">
+
+<br><br>
+
+<button id="createBtn">অ্যাপয়েন্টমেন্ট তৈরি করুন</button>
+
+<pre id="msg"></pre>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  /* ---------- Firebase config ---------- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+    authDomain: "digihealth-65f04.firebaseapp.com",
+    projectId: "digihealth-65f04",
+    storageBucket: "digihealth-65f04.appspot.com",
+    messagingSenderId: "704628949252",
+    appId: "1:704628949252:web:b38a476bd9c4259f829051"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const patientInput = document.getElementById("patientInput");
+  const findPatientBtn = document.getElementById("findPatientBtn");
+  const patientStatus = document.getElementById("patientStatus");
+  const doctorSelect = document.getElementById("doctorSelect");
+  const dateInput = document.getElementById("dateInput");
+  const createBtn = document.getElementById("createBtn");
+  const msg = document.getElementById("msg");
+
+  let selectedPatient = null;
+  let userProfile = null;
+
+  /* ---------- Helpers ---------- */
+
+  async function findUser(input) {
+    const usersRef = collection(db, "users");
+
+    const q = isNaN(input)
+      ? query(usersRef, where("phone", "==", input))
+      : query(usersRef, where("health_id_10", "==", input));
+
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    return { uid: snap.docs[0].id, ...snap.docs[0].data() };
+  }
+
+  async function loadDoctors(orgId) {
+    doctorSelect.innerHTML =
+      '<option value="">ডাক্তার নির্বাচন করুন</option>';
+
+    const ref = collection(db, "organization_doctors");
+    const q = query(
+      ref,
+      where("organization_id", "==", orgId),
+      where("status", "==", "active")
+    );
+
+    const snap = await getDocs(q);
+
+    for (const doc of snap.docs) {
+      const dUid = doc.data().doctor_uid;
+
+      const userSnap = await getDocs(
+        query(collection(db, "users"), where("__name__", "==", dUid))
+      );
+
+      if (!userSnap.empty) {
+        const d = userSnap.docs[0];
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = d.data().name || "ডাক্তার";
+        doctorSelect.appendChild(opt);
+      }
+    }
+  }
+
+  /* ---------- Auth ---------- */
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      msg.textContent = "লগইন করা নেই";
+      return;
+    }
+
+    const profileSnap = await getDocs(
+      query(collection(db, "users"), where("__name__", "==", user.uid))
+    );
+
+    if (profileSnap.empty) {
+      msg.textContent = "প্রোফাইল পাওয়া যায়নি";
+      return;
+    }
+
+    userProfile = profileSnap.docs[0].data();
+
+    if (!userProfile.organization_id) {
+      msg.textContent = "আপনার সাথে কোন অর্গানাইজেশন যুক্ত নেই";
+      return;
+    }
+
+    await loadDoctors(userProfile.organization_id);
+  });
+
+  /* ---------- Patient search ---------- */
+  findPatientBtn.onclick = async () => {
+    patientStatus.textContent = "খোঁজা হচ্ছে...";
+    selectedPatient = null;
+
+    const input = patientInput.value.trim();
+    if (!input) {
+      patientStatus.textContent = "রোগীর তথ্য দিন";
+      return;
+    }
+
+    const patient = await findUser(input);
+    if (!patient) {
+      patientStatus.textContent = "রোগী পাওয়া যায়নি";
+      return;
+    }
+
+    selectedPatient = patient;
+    patientStatus.textContent =
+      "রোগী পাওয়া গেছে: " + (patient.name || "");
+  };
+
+  /* ---------- Create appointment ---------- */
+  createBtn.onclick = async () => {
+    msg.textContent = "";
+
+    if (!selectedPatient) {
+      msg.textContent = "আগে রোগী নির্বাচন করুন";
+      return;
+    }
+
+    if (!doctorSelect.value) {
+      msg.textContent = "ডাক্তার নির্বাচন করুন";
+      return;
+    }
+
+    if (!dateInput.value) {
+      msg.textContent = "তারিখ ও সময় দিন";
+      return;
+    }
+
+    try {
+      const dt = dateInput.value;
+
+      await addDoc(collection(db, "appointments"), {
+        patient_uid: selectedPatient.uid,
+        doctor_uid: doctorSelect.value,
+        organization_id: userProfile.organization_id,
+
+        appointment_date: dt.split("T")[0],
+        appointment_time: dt.split("T")[1],
+
+        status: "requested",
+
+        created_by_uid: auth.currentUser.uid,
+        created_by_role: userProfile.role_id,
+
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      });
+
+      msg.textContent = "অ্যাপয়েন্টমেন্ট সফলভাবে তৈরি হয়েছে";
+    } catch (e) {
+      console.error(e);
+      msg.textContent = "সমস্যা হয়েছে, আবার চেষ্টা করুন";
+    }
+  };
+</script>
+
+</body>
+</html>
