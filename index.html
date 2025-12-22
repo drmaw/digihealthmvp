@@ -1,88 +1,62 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>DigiHealth Login</title>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
-      authDomain: "digihealth-65f04.firebaseapp.com",
-      projectId: "digihealth-65f04",
-      storageBucket: "digihealth-65f04.appspot.com",
-      messagingSenderId: "704628949252",
-      appId: "1:704628949252:web:b38a476bd9c4259f829051"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    window.login = async function () {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (!snap.exists()) {
-        alert("User profile not found");
-        auth.signOut();
-        return;
-      }
-
-      const me = snap.data();
-      const role = me.role_id;
-
-      // 🔴 THIS WAS MISSING BEFORE
-      switch (role) {
-        case "admin":
-          location.href = "/admin.html";
-          break;
-
-        case "doctor":
-          location.href = "/doctor.html";
-          break;
-
-        case "patient":
-          location.href = "/patient.html";
-          break;
-
-        case "clinic_manager":
-          location.href = "/manager.html";
-          break;
-
-        case "assistant_manager":
-          location.href = "/assistant_manager.html";
-          break;
-
-        default:
-          alert("Unauthorized role");
-          auth.signOut();
-      }
-    });
-  </script>
 </head>
+<body>
 
-<body style="font-family: sans-serif">
-  <h2>লগইন</h2>
+<h2>DigiHealth Login</h2>
 
-  <input id="email" placeholder="ইমেইল" />
-  <br /><br />
-  <input id="password" type="password" placeholder="পাসওয়ার্ড" />
-  <br /><br />
-  <button onclick="login()">লগইন</button>
+<input id="email" type="email" placeholder="Email"><br><br>
+<input id="password" type="password" placeholder="Password"><br><br>
+<button id="loginBtn">Login</button>
+
+<p id="status"></p>
+
+<script type="module">
+import { auth } from "./js/firebase.js";
+import { requireAuth } from "./js/auth.js";
+import {
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "./js/firebase.js";
+
+const status = document.getElementById("status");
+
+document.getElementById("loginBtn").onclick = async () => {
+  status.innerText = "Logging in...";
+  try {
+    const email = email.value;
+    const password = password.value;
+
+    const res = await signInWithEmailAndPassword(auth, email, password);
+
+    const snap = await getDoc(doc(db, "users", res.user.uid));
+    if (!snap.exists()) {
+      status.innerText = "User profile not found";
+      return;
+    }
+
+    const role = snap.data().role_id;
+
+    /* CENTRAL ROUTING */
+    if (role === "admin") location.href = "/admin.html";
+    else if (role === "doctor") location.href = "/doctor.html";
+    else if (role === "manager") location.href = "/manager.html";
+    else if (role === "assistant_manager") location.href = "/assistant_manager.html";
+    else location.href = "/patient.html";
+
+  } catch (e) {
+    console.error(e);
+    status.innerText = "Login failed";
+  }
+};
+</script>
+
 </body>
 </html>
