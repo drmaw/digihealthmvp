@@ -36,7 +36,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const status = document.getElementById("status");
+const statusBox = document.getElementById("status");
 const recordsBox = document.getElementById("records");
 
 onAuthStateChanged(auth, user => {
@@ -47,11 +47,11 @@ onAuthStateChanged(auth, user => {
 
   document.getElementById("findBtn").onclick = async () => {
     recordsBox.innerHTML = "";
-    status.innerText = "খোঁজা হচ্ছে...";
+    statusBox.innerText = "খোঁজা হচ্ছে...";
 
     const input = document.getElementById("patientInput").value.trim();
     if (!input) {
-      status.innerText = "আইডি দিন";
+      statusBox.innerText = "আইডি দিন";
       return;
     }
 
@@ -63,7 +63,7 @@ onAuthStateChanged(auth, user => {
 
       const usnap = await getDocs(uq);
       if (usnap.empty) {
-        status.innerText = "রোগী পাওয়া যায়নি";
+        statusBox.innerText = "রোগী পাওয়া যায়নি";
         return;
       }
 
@@ -71,23 +71,24 @@ onAuthStateChanged(auth, user => {
 
       const rq = query(
         collection(db, "patient_records"),
-        where("patient_uid", "==", patientUid)
+        where("patient_uid", "==", patientUid),
+        where("visibility", "!=", "patient_only")
       );
 
       const rsnap = await getDocs(rq);
       if (rsnap.empty) {
-        status.innerText = "কোনো রেকর্ড নেই";
+        statusBox.innerText = "দেখার মতো কোনো রেকর্ড নেই";
         return;
       }
 
-      status.innerText = "রেকর্ড পাওয়া গেছে";
+      statusBox.innerText = "রেকর্ড পাওয়া গেছে";
 
       rsnap.forEach(d => {
         const r = d.data();
         const div = document.createElement("div");
         div.style.border = "1px solid #ccc";
-        div.style.margin = "8px";
         div.style.padding = "8px";
+        div.style.margin = "8px 0";
         div.innerHTML = `
           <b>${r.record_type}</b><br>
           ${r.notes || ""}<br>
@@ -96,7 +97,8 @@ onAuthStateChanged(auth, user => {
       });
 
     } catch (e) {
-      status.innerText = "সমস্যা হয়েছে";
+      console.error(e);
+      statusBox.innerText = "সমস্যা হয়েছে";
     }
   };
 });
