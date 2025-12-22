@@ -2,7 +2,7 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8" />
-  <title>DigiHealth — My Profile</title>
+  <title>DigiHealth — Profile View</title>
 </head>
 <body>
 
@@ -10,97 +10,137 @@
 
 <p id="status">Loading...</p>
 
-<form id="profileForm" style="display:none;">
-  <label>Name</label><br/>
-  <input id="name"/><br/><br/>
+<form id="profileForm" style="display:none">
 
-  <label>Gender</label><br/>
+  <label>Name</label><br>
+  <input id="name"><br><br>
+
+  <label>Gender</label><br>
   <select id="gender">
     <option value="">--</option>
     <option value="male">Male</option>
     <option value="female">Female</option>
     <option value="other">Other</option>
-  </select><br/><br/>
+  </select><br><br>
 
-  <label>Age</label><br/>
-  <input id="age" type="number"/><br/><br/>
+  <label>Age</label><br>
+  <input id="age" type="number"><br><br>
 
-  <label>Occupation</label><br/>
-  <input id="occupation"/><br/><br/>
+  <label>Occupation</label><br>
+  <input id="occupation"><br><br>
 
-  <label>Address</label><br/>
-  <textarea id="address"></textarea><br/><br/>
+  <label>Address</label><br>
+  <textarea id="address"></textarea><br><br>
 
   <button type="button" id="saveBtn">Save</button>
 </form>
 
-<hr/>
+<hr>
 <button id="logoutBtn">Logout</button>
 
 <script type="module">
   import { requireAuth } from "/js/auth_guard.js";
   import { auth, db } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc, updateDoc } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getProfilePermissions } from
-    "/js/profile_field_access.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getProfilePermissions } from "/js/profile_field_access.js";
+
+  const statusEl = document.getElementById("status");
+  const form = document.getElementById("profileForm");
+
+  const nameEl = document.getElementById("name");
+  const genderEl = document.getElementById("gender");
+  const ageEl = document.getElementById("age");
+  const occupationEl = document.getElementById("occupation");
+  const addressEl = document.getElementById("address");
+
+  const params = new URLSearchParams(window.location.search);
+  const targetUid = params.get("uid"); // null = own profile
 
   let currentUser = null;
+  let viewedUid = null;
+  let permissions = null;
 
+  /* 🔐 Auth guard */
   requireAuth(
-    ["patient", "doctor", "clinic_manager", "assistant_manager", "admin"],
+    ["patient", "doctor", "clinic_manager", "assistant_manager", "admin", "staff"],
     async (profile) => {
       currentUser = profile;
-      loadProfile();
+      viewedUid = targetUid || profile.uid;
+      await loadProfile();
     }
   );
 
   async function loadProfile() {
-    const statusEl = document.getElementById("status");
-    const form = document.getElementById("profileForm");
+    statusEl.innerText = "Loading profile...";
 
-    const snap = await getDoc(doc(db, "users", currentUser.uid));
+    const snap = await getDoc(doc(db, "users", viewedUid));
+    if (!snap.exists()) {
+      statusEl.innerText = "Profile not found";
+      return;
+    }
+
     const data = snap.data();
 
-    const perms = getProfilePermissions(currentUser, currentUser.uid);
-    if (!perms) {
+    permissions = getProfilePermissions(currentUser, viewedUid);
+    if (!permissions.view || permissions.view.length === 0) {
       statusEl.innerText = "Access denied";
       return;
     }
 
-    // Populate fields
-    name.value = data.name || "";
-    gender.value = data.gender || "";
-    age.value = data.age || "";
-    occupation.value = data.occupation || "";
-    address.value = data.address || "";
+    /* Populate fields */
+    nameEl.value = data.name || "";
+    genderEl.value = data.gender || "";
+    ageEl.value = data.age || "";
+    occupationEl.value = data.occupation || "";
+    addressEl.value = data.address || "";
 
-    // Disable fields not editable
-    ["name","gender","age","occupation","address"].forEach(f => {
-      if (perms.edit !== "all" && !perms.edit.includes(f)) {
-        document.getElementById(f).disabled = true;
+    /* Disable fields not editable */
+    ["name", "gender", "age", "occupation", "address"].forEach((field) => {
+      const el = document.getElementById(field);
+      if (
+        permissions.edit !== "all" &&
+        !permissions.edit.includes(field)
+      ) {
+        el.disabled = true;
       }
     });
+
+    /* Hide save button if no edit rights */
+    if (permissions.edit.length === 0) {
+      document.getElementById("saveBtn").style.display = "none";
+    }
 
     form.style.display = "block";
     statusEl.innerText = "Loaded";
   }
 
+  /* 💾 Save allowed fields only */
   document.getElementById("saveBtn").onclick = async () => {
-    const updates = {
-      name: name.value,
-      gender: gender.value,
-      age: Number(age.value),
-      occupation: occupation.value,
-      address: address.value
-    };
+    if (!permissions || permissions.edit.length === 0) return;
 
-    await updateDoc(doc(db, "users", currentUser.uid), updates);
-    document.getElementById("status").innerText = "Saved";
+    const updates = {};
+
+    if (permissions.edit === "all" || permissions.edit.includes("name"))
+      updates.name = nameEl.value;
+
+    if (permissions.edit === "all" || permissions.edit.includes("gender"))
+      updates.gender = genderEl.value;
+
+    if (permissions.edit === "all" || permissions.edit.includes("age"))
+      updates.age = Number(ageEl.value);
+
+    if (permissions.edit === "all" || permissions.edit.includes("occupation"))
+      updates.occupation = occupationEl.value;
+
+    if (permissions.edit === "all" || permissions.edit.includes("address"))
+      updates.address = addressEl.value;
+
+    await updateDoc(doc(db, "users", viewedUid), updates);
+    statusEl.innerText = "Saved";
   };
 
+  /* 🚪 Logout */
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
