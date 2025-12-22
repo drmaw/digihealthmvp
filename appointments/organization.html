@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>অর্গানাইজেশন অ্যাপয়েন্টমেন্ট</title>
+</head>
+<body>
+
+<h3>অর্গানাইজেশনের অ্যাপয়েন্টমেন্টসমূহ</h3>
+
+<div id="list"></div>
+<pre id="msg"></pre>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    getDocs,
+    doc,
+    deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  /* ---------- Firebase config ---------- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+    authDomain: "digihealth-65f04.firebaseapp.com",
+    projectId: "digihealth-65f04",
+    storageBucket: "digihealth-65f04.appspot.com",
+    messagingSenderId: "704628949252",
+    appId: "1:704628949252:web:b38a476bd9c4259f829051"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const list = document.getElementById("list");
+  const msg = document.getElementById("msg");
+
+  let userProfile = null;
+
+  /* ---------- Helpers ---------- */
+
+  async function getUserProfile(uid) {
+    const snap = await getDocs(
+      query(collection(db, "users"), where("__name__", "==", uid))
+    );
+    if (snap.empty) return null;
+    return snap.docs[0].data();
+  }
+
+  async function loadAppointments() {
+    list.innerHTML = "";
+    msg.textContent = "লোড হচ্ছে...";
+
+    const ref = collection(db, "appointments");
+    const q = query(
+      ref,
+      where("organization_id", "==", userProfile.organization_id)
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      msg.textContent = "কোন অ্যাপয়েন্টমেন্ট নেই";
+      return;
+    }
+
+    msg.textContent = "";
+
+    snap.docs.forEach(d => {
+      const a = d.data();
+
+      const div = document.createElement("div");
+      div.style.border = "1px solid #ccc";
+      div.style.padding = "10px";
+      div.style.marginBottom = "10px";
+
+      div.innerHTML = `
+        <b>রোগী UID:</b> ${a.patient_uid}<br>
+        <b>ডাক্তার UID:</b> ${a.doctor_uid}<br>
+        <b>তারিখ:</b> ${a.appointment_date}<br>
+        <b>সময়:</b> ${a.appointment_time}<br>
+        <b>স্ট্যাটাস:</b> ${a.status}<br><br>
+      `;
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "ডিলিট";
+      delBtn.onclick = async () => {
+        if (!confirm("আপনি কি নিশ্চিত?")) return;
+        await deleteDoc(doc(db, "appointments", d.id));
+        loadAppointments();
+      };
+
+      div.appendChild(delBtn);
+      list.appendChild(div);
+    });
+  }
+
+  /* ---------- Auth ---------- */
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      msg.textContent = "লগইন করা নেই";
+      return;
+    }
+
+    userProfile = await getUserProfile(user.uid);
+
+    if (!userProfile || !userProfile.organization_id) {
+      msg.textContent = "আপনি কোন অর্গানাইজেশনের সাথে যুক্ত নন";
+      return;
+    }
+
+    loadAppointments();
+  });
+
+</script>
+
+</body>
+</html>
