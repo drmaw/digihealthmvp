@@ -2,38 +2,45 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <title>Scan QR — DigiHealth</title>
+  <title>QR Scan — DigiHealth</title>
 </head>
+
 <body>
 
-<h2>Scan QR Code</h2>
-<p id="msg">Allow camera access</p>
+<h3>📷 QR Scan</h3>
+<p id="msg">Processing QR...</p>
 
-<video id="video" width="300" autoplay></video><br><br>
-<button id="closeBtn">Close</button>
+<script type="module">
+  import { parseQRPayload } from "/js/qr.js";
+  import { searchUser } from "/js/search.js";
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+  const msg = document.getElementById("msg");
 
-<script>
-const msg = document.getElementById("msg");
+  const params = new URLSearchParams(window.location.search);
+  const data = params.get("data");
+  const returnTo = params.get("return") || "/clinic/search.html";
 
-const qr = new Html5Qrcode("video");
+  if (!data) {
+    msg.innerText = "❌ QR data missing";
+    throw new Error("No QR data");
+  }
 
-qr.start(
-  { facingMode: "environment" },
-  { fps: 10, qrbox: 250 },
-  (text) => {
-    msg.innerText = "Scanned!";
-    localStorage.setItem("qr_result", text);
-    qr.stop();
-    window.close();
-  },
-  () => {}
-).catch(() => {
-  msg.innerText = "Camera error";
-});
+  const payload = parseQRPayload(data);
 
-closeBtn.onclick = () => window.close();
+  if (!payload || !payload.digihealth_id) {
+    msg.innerText = "❌ Invalid QR code";
+    throw new Error("Invalid QR");
+  }
+
+  const user = await searchUser(payload.digihealth_id);
+
+  if (!user) {
+    msg.innerText = "❌ Patient not found";
+    throw new Error("User not found");
+  }
+
+  // Redirect to profile
+  location.href = `/profile/view.html?uid=${user.uid}`;
 </script>
 
 </body>
