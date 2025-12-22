@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>Doctor – Patient Records</title>
+</head>
+<body>
+
+<h3>রোগীর রেকর্ড দেখুন</h3>
+
+<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
+<button id="findBtn">খুঁজুন</button>
+
+<p id="status"></p>
+<hr>
+<div id="records"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* Firebase config */
+const firebaseConfig = {
+  apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
+  authDomain: "digihealth-65f04.firebaseapp.com",
+  projectId: "digihealth-65f04"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const status = document.getElementById("status");
+const recordsBox = document.getElementById("records");
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    location.href = "/index.html";
+    return;
+  }
+
+  document.getElementById("findBtn").onclick = async () => {
+    recordsBox.innerHTML = "";
+    status.innerText = "খোঁজা হচ্ছে...";
+
+    const input = document.getElementById("patientInput").value.trim();
+    if (!input) {
+      status.innerText = "আইডি দিন";
+      return;
+    }
+
+    try {
+      /* 1. Find patient */
+      const usersRef = collection(db, "users");
+      const q = isNaN(input)
+        ? query(usersRef, where("phone", "==", input))
+        : query(usersRef, where("health_id_10", "==", input));
+
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        status.innerText = "রোগী পাওয়া যায়নি";
+        return;
+      }
+
+      const patientUid = snap.docs[0].id;
+
+      /* 2. Load records */
+      const recordsRef = collection(db, "patient_records");
+      const rq = query(recordsRef, where("patient_uid", "==", patientUid));
+      const rsnap = await getDocs(rq);
+
+      if (rsnap.empty) {
+        status.innerText = "কোনো রেকর্ড নেই";
+        return;
+      }
+
+      status.innerText = "রেকর্ড পাওয়া গেছে";
+
+      rsnap.forEach(doc => {
+        const r = doc.data();
+        const div = document.createElement("div");
+        div.style.border = "1px solid #ccc";
+        div.style.padding = "8px";
+        div.style.margin = "8px 0";
+
+        div.innerHTML = `
+          <b>${r.record_type}</b><br>
+          <b>${r.title || ""}</b><br>
+          ${r.notes || ""}<br>
+          <small>${r.created_at?.toDate?.()}</small>
+        `;
+        recordsBox.appendChild(div);
+      });
+
+    } catch (e) {
+      console.error(e);
+      status.innerText = "সমস্যা হয়েছে";
+    }
+  };
+});
+</script>
+
+</body>
+</html>
