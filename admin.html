@@ -1,58 +1,61 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>অ্যাডমিন ড্যাশবোর্ড</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Admin Dashboard</title>
 </head>
 <body>
 
-<div style="float:right">
-  <select id="langSwitch">
-    <option value="bn">বাংলা</option>
-    <option value="en">English</option>
-  </select>
-  <button id="logoutBtn">লগআউট</button>
-</div>
+<h2>Admin Dashboard</h2>
 
-<h2 id="title">অ্যাডমিন ড্যাশবোর্ড</h2>
+<nav>
+  <ul>
+    <li><a href="/admin/approvals.html">Approvals</a></li>
+    <li><a href="/admin/users.html">Users</a></li>
+    <li><a href="/admin/representatives.html">Representatives</a></li>
+    <li><a href="/admin/logs.html">Activity Logs</a></li>
+  </ul>
+</nav>
 
-<ul>
-  <li><a href="/admin-users.html">👥 ব্যবহারকারী</a></li>
-  <li><a href="/admin-organizations.html">🏥 প্রতিষ্ঠান</a></li>
-</ul>
+<hr />
+
+<section id="stats">
+  <h3>System Statistics</h3>
+  <div id="statsBox">Loading...</div>
+</section>
+
+<hr />
+
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getRoleStatistics } from "/js/admin_access.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBqUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
-  authDomain: "digihealth-65f04.firebaseapp.com",
-  projectId: "digihealth-65f04",
-  storageBucket: "digihealth-65f04.appspot.com",
-  messagingSenderId: "704628949252",
-  appId: "1:704628949252:web:b38a476bd9c4259f829051"
-};
+  // 🔐 Guard: Admin only
+  requireAuth(["admin"], async (adminProfile) => {
+    // Load stats
+    const stats = await getRoleStatistics();
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+    document.getElementById("statsBox").innerHTML = `
+      <p>Total Users: ${stats.total}</p>
+      <p>Patients: ${stats.patient}</p>
+      <p>Doctors: ${stats.doctor}</p>
+      <p>Clinic Managers: ${stats.clinic_manager}</p>
+      <p>Assistant Managers: ${stats.assistant_manager}</p>
+      <p>Representatives: ${stats.representative}</p>
+      <p>Admins: ${stats.admin}</p>
+    `;
+  });
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return location.href = "/index.html";
-
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists() || snap.data().role_id !== "admin") {
+  // Logout
+  document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
-  }
-});
-
-logoutBtn.onclick = async () => {
-  await signOut(auth);
-  location.href = "/index.html";
-};
+  };
 </script>
 
 </body>
