@@ -1,46 +1,74 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>সহকারী ম্যানেজার</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Assistant Manager Dashboard</title>
 </head>
-<body style="display:flex;gap:10px;">
+<body>
 
-<div id="sidebar"></div>
+<h2>Assistant Manager Dashboard</h2>
 
-<main style="padding:10px;flex:1;">
-  <h2>সহকারী ম্যানেজার ড্যাশবোর্ড</h2>
+<div id="noOrgBox" style="display:none;">
+  <p>আপনি কোনো প্রতিষ্ঠানের সাথে যুক্ত নন।</p>
+</div>
 
-  <h3>DigiHealth QR</h3>
-  <img id="qr" alt="DigiHealth QR Code">
+<div id="assistantContent" style="display:none;">
+  <nav>
+    <ul>
+      <li><a href="/appointments/my.html">Appointments</a></li>
+      <li><a href="/records/doctor_view.html">Search Patient Records</a></li>
+    </ul>
+  </nav>
 
-  <p>বাম পাশের মেনু থেকে অপশন নির্বাচন করুন।</p>
-</main>
+  <hr />
+
+  <section>
+    <h3>Organization Info</h3>
+    <div id="orgInfo">Loading...</div>
+  </section>
+</div>
+
+<hr />
+
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { auth } from "./js/firebase.js";
-import { generateProfileQR } from "./js/qr.js";
-import { requireClinicUser } from "./clinic/clinic.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { doc, getDoc } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// load sidebar
-const sidebar = await fetch("/clinic/sidebar.html").then(r => r.text());
-document.getElementById("sidebar").innerHTML = sidebar;
+  // 🔐 Guard: Assistant Manager only
+  requireAuth(["assistant_manager"], async (profile) => {
 
-// auth + org guard
-const { profile } = await requireClinicUser();
+    if (!profile.organization_id) {
+      document.getElementById("noOrgBox").style.display = "block";
+      return;
+    }
 
-// QR
-generateProfileQR(document.getElementById("qr"), {
-  digihealth_id: profile.digihealth_id,
-  role: profile.role_id
-});
+    document.getElementById("assistantContent").style.display = "block";
 
-// logout
-document.getElementById("logout").onclick = async () => {
-  await signOut(auth);
-  location.href = "/index.html";
-};
+    // Load organization info
+    const snap = await getDoc(doc(db, "organizations", profile.organization_id));
+    if (!snap.exists()) {
+      document.getElementById("orgInfo").innerText = "প্রতিষ্ঠান পাওয়া যায়নি";
+      return;
+    }
+
+    const org = snap.data();
+    document.getElementById("orgInfo").innerHTML = `
+      <p><b>Name:</b> ${org.name}</p>
+      <p><b>Status:</b> ${org.status}</p>
+    `;
+  });
+
+  // Logout
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
