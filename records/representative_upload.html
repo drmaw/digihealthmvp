@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Representative Upload — DigiHealth</title>
+</head>
+<body>
+
+<h2>Upload Medical Record (Representative)</h2>
+
+<p id="status"></p>
+
+<input id="searchInput" placeholder="DigiHealth ID / Mobile"><br><br>
+<button id="searchBtn">Search Patient</button>
+
+<div id="patientBox" style="display:none;">
+  <p id="patientInfo"></p>
+
+  <label>Select Images</label><br>
+  <input type="file" id="files" multiple accept="image/*"><br><br>
+
+  <button id="uploadBtn">Upload</button>
+</div>
+
+<hr>
+<button id="logoutBtn">Logout</button>
+
+<script type="module">
+import { requireRole } from "/js/auth_guard.js";
+import { auth, db, storage } from "/js/firebase.js";
+import { searchUser } from "/js/search.js";
+import {
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { signOut } from
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+let viewer = null;
+let patient = null;
+
+requireRole(["representative"], (profile) => {
+  viewer = profile;
+});
+
+searchBtn.onclick = async () => {
+  status.innerText = "Searching...";
+  patient = await searchUser(searchInput.value, viewer);
+
+  if (!patient) {
+    status.innerText = "Patient not found";
+    return;
+  }
+
+  patientBox.style.display = "block";
+  patientInfo.innerText =
+    `Name: ${patient.name || "N/A"}\nID: ${patient.health_id_10}`;
+  status.innerText = "";
+};
+
+uploadBtn.onclick = async () => {
+  if (!patient) return;
+  const files = document.getElementById("files").files;
+  if (!files.length) {
+    status.innerText = "Select images";
+    return;
+  }
+
+  status.innerText = "Uploading...";
+  let urls = [];
+
+  for (const file of files) {
+    const r = ref(
+      storage,
+      `records/${patient.uid}/${Date.now()}_${file.name}`
+    );
+    await uploadBytes(r, file);
+    urls.push(await getDownloadURL(r));
+  }
+
+  await addDoc(collection(db, "records"), {
+    patient_uid: patient.uid,
+    uploaded_by_uid: viewer.uid,
+    uploader_role: "representative",
+    image_urls: urls,
+    visibility: "private",
+    createdAt: serverTimestamp()
+  });
+
+  status.innerText = "Upload complete";
+  patientBox.style.display = "none";
+};
+
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
+};
+</script>
+
+</body>
+</html>
