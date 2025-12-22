@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — Representative Dashboard</title>
+</head>
+<body>
+
+<h2>Representative Dashboard</h2>
+
+<nav>
+  <ul>
+    <li><a href="/records/add.html">Upload Patient Documents</a></li>
+  </ul>
+</nav>
+
+<hr />
+
+<section>
+  <p>
+    এই অ্যাকাউন্ট শুধুমাত্র রোগীদের সহায়তা করার জন্য ব্যবহৃত হয়।
+    আপনি রোগীর তথ্য দেখতে বা পরিবর্তন করতে পারবেন না।
+  </p>
+</section>
+
+<hr />
+
+<button id="logoutBtn">Logout</button>
+
+<script type="module">
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  // 🔐 Guard: Representative only
+  requireAuth(["representative"], async () => {});
+
+  // Logout
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
+</script>
+
+</body>
+</html>
