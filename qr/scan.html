@@ -3,46 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <title>DigiHealth – QR Scan</title>
-
-  <!-- QR Scanner library -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 16px;
     }
+    h2 {
+      margin-bottom: 8px;
+    }
     #reader {
-      width: 300px;
-      margin-top: 20px;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 16px;
+    }
+    .hint {
+      font-size: 14px;
+      color: #555;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
 
-  <h2>Scan DigiHealth QR Code</h2>
-  <p>Point camera at patient QR code</p>
+  <h2>Scan QR Code</h2>
+  <p>Point the camera at a DigiHealth QR code.</p>
 
   <div id="reader"></div>
 
+  <p class="hint">
+    Accepted formats:
+    <br>• 10-digit Health ID
+    <br>• Mobile number
+    <br>• JSON: {"health_id_10":"XXXXXXXXXX"}
+  </p>
+
+  <!-- QR Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <!-- Your QR logic -->
   <script type="module">
-    import { handleQRResult } from "/js/qr_scan.js";
+    import { handleQRResult } from "../js/qr_scan.js";
 
     const reader = new Html5Qrcode("reader");
 
     reader.start(
       { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: 250
-      },
+      { fps: 10, qrbox: 250 },
       (decodedText) => {
         reader.stop();
         handleQRResult(decodedText);
       },
-      (error) => {
-        // ignore scan errors
-      }
+      () => {}
     ).catch(err => {
       alert("Camera access failed");
       console.error(err);
