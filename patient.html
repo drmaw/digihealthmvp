@@ -1,75 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Patient Dashboard</title>
-</head>
-<body>
 
-<h1>Patient Dashboard</h1>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
-<p><b>My DigiHealth ID:</b></p>
-<p id="healthId">Loading...</p>
+  <script type="module">
+    import { auth, db } from "/firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<h3>My QR Code</h3>
-<div id="qr"></div>
+    window.addEventListener("DOMContentLoaded", () => {
+      const healthIdEl = document.getElementById("healthId");
+      const qrEl = document.getElementById("qr");
+      const logoutBtn = document.getElementById("logout");
 
-<hr>
-<button id="logoutBtn">Logout</button>
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          location.href = "/index.html";
+          return;
+        }
 
-<!-- QR library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (!snap.exists()) {
+          healthIdEl.innerText = "Profile missing";
+          return;
+        }
 
-<script type="module">
-  import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        const data = snap.data();
 
-  const healthIdEl = document.getElementById("healthId");
-  const qrEl = document.getElementById("qr");
+        // ✅ CORRECT FIELD
+        const healthId = data.health_id_10;
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      location.href = "/index.html";
-      return;
-    }
+        if (!healthId) {
+          healthIdEl.innerText = "Health ID not assigned";
+          return;
+        }
 
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
+        healthIdEl.innerText = healthId;
 
-      if (!snap.exists()) {
-        healthIdEl.innerText = "Profile missing";
-        return;
-      }
-
-      const data = snap.data();
-      const digiId = data.health_id_10;
-
-      if (!digiId) {
-        healthIdEl.innerText = "DigiHealth ID not assigned";
-        return;
-      }
-
-      healthIdEl.innerText = digiId;
-
-      qrEl.innerHTML = "";
-      new QRCode(qrEl, {
-        text: digiId,
-        width: 180,
-        height: 180
+        qrEl.innerHTML = "";
+        new QRCode(qrEl, {
+          text: healthId,
+          width: 180,
+          height: 180
+        });
       });
 
-    } catch (e) {
-      console.error(e);
-      healthIdEl.innerText = "Error loading profile";
-    }
-  });
+      logoutBtn.onclick = async () => {
+        await signOut(auth);
+        location.href = "/index.html";
+      };
+    });
+  </script>
+</head>
 
-  document.getElementById("logoutBtn").onclick = async () => {
-    await signOut(auth);
-    location.href = "/index.html";
-  };
-</script>
+<body>
+  <h2>Patient Dashboard</h2>
 
+  <ul>
+    <li><a href="/profile/view.html">My Profile</a></li>
+    <li><a href="/appointments/my.html">My Appointments</a></li>
+    <li><a href="/records/my.html">My Medical Records</a></li>
+  </ul>
+
+  <hr>
+
+  <h3>My DigiHealth ID</h3>
+  <p id="healthId">Loading…</p>
+
+  <div id="qr"></div>
+
+  <br>
+  <button id="logout">Logout</button>
 </body>
 </html>
