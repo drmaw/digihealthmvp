@@ -1,15 +1,53 @@
-import { db } from "/firebase.js";
-import { collection, query, where, getDocs } from
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DigiHealth – QR Scan</title>
 
-export async function lookupByHealthId(healthId) {
-  const q = query(
-    collection(db, "users"),
-    where("health_id_10", "==", healthId)
-  );
+  <!-- QR Scanner library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+    }
+    #reader {
+      width: 300px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
 
-  return snap.docs[0].data();
-}
+  <h2>Scan DigiHealth QR Code</h2>
+  <p>Point camera at patient QR code</p>
+
+  <div id="reader"></div>
+
+  <script type="module">
+    import { handleQRResult } from "/js/qr_scan.js";
+
+    const reader = new Html5Qrcode("reader");
+
+    reader.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: 250
+      },
+      (decodedText) => {
+        reader.stop();
+        handleQRResult(decodedText);
+      },
+      (error) => {
+        // ignore scan errors
+      }
+    ).catch(err => {
+      alert("Camera access failed");
+      console.error(err);
+    });
+  </script>
+
+</body>
+</html>
