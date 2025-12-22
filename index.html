@@ -30,7 +30,7 @@
   const emailEl = document.getElementById("email");
   const passwordEl = document.getElementById("password");
 
-  // Ensure session persists properly
+  // Persist login (important for mobile)
   await setPersistence(auth, browserLocalPersistence);
 
   document.getElementById("loginBtn").onclick = async () => {
@@ -45,52 +45,60 @@
     }
 
     try {
-      // 1. Firebase Auth login
+      // 1️⃣ Firebase Auth
       const res = await signInWithEmailAndPassword(auth, email, password);
 
-      // 2. Fetch user profile from Firestore
+      // 2️⃣ Load user profile
       const snap = await getDoc(doc(db, "users", res.user.uid));
 
       if (!snap.exists()) {
-        statusEl.innerText = "User profile not found in database";
+        statusEl.innerText = "User profile not found";
         return;
       }
 
       const profile = snap.data();
 
-      // 3. Approval gate (VERY IMPORTANT)
-      if (profile.approved !== true) {
-        statusEl.innerText = "Account not approved yet";
-        return;
-      }
-
+      // 3️⃣ Status check
       if (profile.status !== "active") {
         statusEl.innerText = "Account inactive";
         return;
       }
 
-      // 4. Role-based routing
+      // 4️⃣ Approval rules
+      if (
+        (profile.role_id === "doctor" || profile.role_id === "clinic_manager")
+        && profile.approved !== true
+      ) {
+        statusEl.innerText = "Account pending admin approval";
+        return;
+      }
+
+      // 5️⃣ Role routing (STRICT)
       switch (profile.role_id) {
         case "admin":
           location.href = "/admin.html";
           break;
+
         case "doctor":
           location.href = "/doctor.html";
           break;
+
         case "clinic_manager":
           location.href = "/manager.html";
           break;
+
         case "assistant_manager":
           location.href = "/assistant_manager.html";
           break;
+
         case "patient":
         default:
           location.href = "/patient.html";
       }
 
     } catch (e) {
-      console.error("Login error:", e);
-      statusEl.innerText = e.message || "Login failed";
+      console.error(e);
+      statusEl.innerText = "Login failed";
     }
   };
 </script>
