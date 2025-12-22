@@ -1,11 +1,11 @@
-// =======================================================
-// DigiHealth — Global User Search Utility
-// File: /js/search.js
-// Supports search by:
-//   - DigiHealth ID (10 digits)
-//   - Mobile number (Bangladesh)
-// Enforces role + organization-based access
-// =======================================================
+/* =========================================================
+   DigiHealth — Unified Search
+   File: /js/search.js
+   ---------------------------------------------------------
+   • Search by DigiHealth ID or mobile
+   • Privacy-safe (no leakage)
+   • Uses access_control.js ONLY for permissions
+   ========================================================= */
 
 import { db } from "./firebase.js";
 import {
@@ -14,60 +14,79 @@ import {
   where,
   getDocs,
   limit
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-/*
-  viewer = {
-    uid,
-    role_id,
-    organization_id
-  }
-*/
+import {
+  canViewProfile
+} from "./access_control.js";
 
-export async function searchUser(input, viewer) {
-  if (!viewer || !viewer.role_id) return null;
+/* =========================================================
+   Helpers
+   ========================================================= */
 
-  input = input.trim();
-  if (!input) return null;
+function isDigiHealthId(value) {
+  return /^\d{10}$/.test(value);
+}
 
+function isMobile(value) {
+  return /^01\d{9}$/.test(value);
+}
+
+/* =========================================================
+   Main search function
+   ---------------------------------------------------------
+   viewer = logged-in user object
+   input  = DigiHealth ID or mobile
+   Returns:
+     - null (not found / not allowed)
+     - { uid, ...userData }
+   ========================================================= */
+
+export async function searchUser(viewer, input) {
+  if (!viewer || !input) return null;
+
+  const key = input.trim();
+  if (!key) return null;
+
+  let q = null;
   const usersRef = collection(db, "users");
-  let filters = [];
 
-  // 🔒 Organization restriction
-  // Admin + Doctor → global
-  // Manager / Assistant / Staff → own organization only
-  if (
-    viewer.role_id === "clinic_manager" ||
-    viewer.role_id === "assistant_manager" ||
-    viewer.role_id === "staff"
-  ) {
-    if (!viewer.organization_id) return null;
-    filters.push(
-      where("organization_id", "==", viewer.organization_id)
+  if (isDigiHealthId(key)) {
+    q = query(
+      usersRef,
+      where("health_id_10", "==", key),
+      limit(1)
     );
   }
-
-  // 🔍 DigiHealth ID (10 digits)
-  if (/^\d{10}$/.test(input)) {
-    filters.push(where("health_id_10", "==", input));
-  }
-  // 📱 Bangladesh mobile number
-  else if (/^01\d{9}$/.test(input)) {
-    filters.push(where("mobile", "==", input));
+  else if (isMobile(key)) {
+    q = query(
+      usersRef,
+      where("mobile", "==", key),
+      limit(1)
+    );
   }
   else {
     return null;
   }
 
-  const q = query(usersRef, ...filters, limit(1));
   const snap = await getDocs(q);
-
   if (snap.empty) return null;
 
   const docSnap = snap.docs[0];
-
-  return {
+  const targetUser = {
     uid: docSnap.id,
     ...docSnap.data()
   };
+
+  /* =====================================================
+     FINAL PERMISSION CHECK (CRITICAL)
+     -----------------------------------------------------
+     Even if found in Firestore, we MUST check access
+     ===================================================== */
+
+  if (!canViewProfile(viewer, targetUser)) {
+    return null; // privacy-safe: looks like "not found"
+  }
+
+  return targetUser;
 }
