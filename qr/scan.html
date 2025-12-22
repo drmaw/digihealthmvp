@@ -1,47 +1,15 @@
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-  <meta charset="UTF-8">
-  <title>QR Scan — DigiHealth</title>
-</head>
+import { db } from "/firebase.js";
+import { collection, query, where, getDocs } from
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<body>
+export async function lookupByHealthId(healthId) {
+  const q = query(
+    collection(db, "users"),
+    where("health_id_10", "==", healthId)
+  );
 
-<h3>📷 QR Scan</h3>
-<p id="msg">Processing QR...</p>
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
 
-<script type="module">
-  import { parseQRPayload } from "/js/qr.js";
-  import { searchUser } from "/js/search.js";
-
-  const msg = document.getElementById("msg");
-
-  const params = new URLSearchParams(window.location.search);
-  const data = params.get("data");
-  const returnTo = params.get("return") || "/clinic/search.html";
-
-  if (!data) {
-    msg.innerText = "❌ QR data missing";
-    throw new Error("No QR data");
-  }
-
-  const payload = parseQRPayload(data);
-
-  if (!payload || !payload.digihealth_id) {
-    msg.innerText = "❌ Invalid QR code";
-    throw new Error("Invalid QR");
-  }
-
-  const user = await searchUser(payload.digihealth_id);
-
-  if (!user) {
-    msg.innerText = "❌ Patient not found";
-    throw new Error("User not found");
-  }
-
-  // Redirect to profile
-  location.href = `/profile/view.html?uid=${user.uid}`;
-</script>
-
-</body>
-</html>
+  return snap.docs[0].data();
+}
