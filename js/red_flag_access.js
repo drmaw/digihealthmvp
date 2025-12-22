@@ -1,43 +1,44 @@
-/* =====================================================
-   DigiHealth – Red Flag Access Control
+/* ==========================================================
+   DigiHealth — Red Flag Access Control
    File: /js/red_flag_access.js
-===================================================== */
+   ========================================================== */
 
 /*
- Red flag rules:
- - Admin: see + edit flag & note
- - Doctor: see flag + note, edit allowed
- - Manager / Assistant Manager: see flag only
- - Other staff: see flag only
- - Patient: cannot see
+Returns:
+{
+  view: boolean,   // can see red flag banner
+  edit: boolean    // can add/remove/edit red flag & note
+}
 */
 
-export function canSeeRedFlag(viewer) {
-  if (!viewer) return false;
+export function getRedFlagPermissions(viewer) {
+  if (!viewer || !viewer.role_id) {
+    return { view: false, edit: false };
+  }
 
-  return [
-    "admin",
-    "doctor",
-    "clinic_manager",
-    "assistant_manager",
-    "staff"
-  ].includes(viewer.role_id);
-}
+  // ADMIN — full control
+  if (viewer.role_id === "admin") {
+    return { view: true, edit: true };
+  }
 
-export function canSeeRedFlagNote(viewer) {
-  if (!viewer) return false;
+  // DOCTOR — full control
+  if (viewer.role_id === "doctor") {
+    return { view: true, edit: true };
+  }
 
-  return [
-    "admin",
-    "doctor"
-  ].includes(viewer.role_id);
-}
+  // CLINIC MANAGER / ASSISTANT — view only
+  if (
+    viewer.role_id === "clinic_manager" ||
+    viewer.role_id === "assistant_manager"
+  ) {
+    return { view: true, edit: false };
+  }
 
-export function canEditRedFlag(viewer) {
-  if (!viewer) return false;
+  // PATIENT — can see own red flag only (no edit)
+  if (viewer.role_id === "patient") {
+    return { view: true, edit: false };
+  }
 
-  return [
-    "admin",
-    "doctor"
-  ].includes(viewer.role_id);
+  // STAFF / REPRESENTATIVE / OTHERS — no access
+  return { view: false, edit: false };
 }
