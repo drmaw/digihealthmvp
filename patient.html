@@ -1,78 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Patient Dashboard</title>
 
+  <!-- QR generator -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
-  <script type="module">
-    import { auth, db } from "/firebase.js";
-    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <!-- Firebase -->
+  <script type="module" src="/firebase.js"></script>
+  <script type="module" src="/js/auth_guard.js"></script>
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const healthIdEl = document.getElementById("healthId");
-      const qrEl = document.getElementById("qr");
-      const logoutBtn = document.getElementById("logout");
-
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          location.href = "/index.html";
-          return;
-        }
-
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (!snap.exists()) {
-          healthIdEl.innerText = "Profile missing";
-          return;
-        }
-
-        const data = snap.data();
-
-        // ✅ CORRECT FIELD
-        const healthId = data.health_id_10;
-
-        if (!healthId) {
-          healthIdEl.innerText = "Health ID not assigned";
-          return;
-        }
-
-        healthIdEl.innerText = healthId;
-
-        qrEl.innerHTML = "";
-        new QRCode(qrEl, {
-          text: healthId,
-          width: 180,
-          height: 180
-        });
-      });
-
-      logoutBtn.onclick = async () => {
-        await signOut(auth);
-        location.href = "/index.html";
-      };
-    });
-  </script>
+  <style>
+    #qr-box {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      display: inline-block;
+    }
+  </style>
 </head>
 
 <body>
   <h2>Patient Dashboard</h2>
 
-  <ul>
-    <li><a href="/profile/view.html">My Profile</a></li>
-    <li><a href="/appointments/my.html">My Appointments</a></li>
-    <li><a href="/records/my.html">My Medical Records</a></li>
-  </ul>
+  <p><strong>My DigiHealth ID:</strong></p>
+  <p id="healthId">Loading...</p>
 
-  <hr>
+  <h3>My QR Code</h3>
+  <div id="qr-box"></div>
 
-  <h3>My DigiHealth ID</h3>
-  <p id="healthId">Loading…</p>
+  <br /><br />
+  <button onclick="logout()">Logout</button>
 
-  <div id="qr"></div>
+  <script type="module">
+    import { auth, db } from "/firebase.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  <br>
-  <button id="logout">Logout</button>
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
+
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+
+      const healthId = data.health_id_10;
+      document.getElementById("healthId").innerText = healthId;
+
+      // Generate QR
+      new QRCode(document.getElementById("qr-box"), {
+        text: healthId,
+        width: 220,
+        height: 220
+      });
+    });
+
+    window.logout = async () => {
+      await signOut(auth);
+      window.location.href = "/index.html";
+    };
+  </script>
 </body>
 </html>
