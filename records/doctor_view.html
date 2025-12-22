@@ -6,8 +6,6 @@
 </head>
 <body>
 
-<button onclick="location.href='/logout.html'">লগআউট</button>
-
 <h3>রোগীর রেকর্ড দেখুন</h3>
 
 <input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
@@ -41,7 +39,7 @@ const db = getFirestore(app);
 const status = document.getElementById("status");
 const recordsBox = document.getElementById("records");
 
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, user => {
   if (!user) {
     location.href = "/index.html";
     return;
@@ -59,22 +57,24 @@ onAuthStateChanged(auth, async (user) => {
 
     try {
       const usersRef = collection(db, "users");
-      const q = isNaN(input)
+      const uq = isNaN(input)
         ? query(usersRef, where("phone", "==", input))
         : query(usersRef, where("health_id_10", "==", input));
 
-      const snap = await getDocs(q);
-      if (snap.empty) {
+      const usnap = await getDocs(uq);
+      if (usnap.empty) {
         status.innerText = "রোগী পাওয়া যায়নি";
         return;
       }
 
-      const patientUid = snap.docs[0].id;
+      const patientUid = usnap.docs[0].id;
 
-      const recordsRef = collection(db, "patient_records");
-      const rq = query(recordsRef, where("patient_uid", "==", patientUid));
+      const rq = query(
+        collection(db, "patient_records"),
+        where("patient_uid", "==", patientUid)
+      );
+
       const rsnap = await getDocs(rq);
-
       if (rsnap.empty) {
         status.innerText = "কোনো রেকর্ড নেই";
         return;
@@ -82,24 +82,20 @@ onAuthStateChanged(auth, async (user) => {
 
       status.innerText = "রেকর্ড পাওয়া গেছে";
 
-      rsnap.forEach(doc => {
-        const r = doc.data();
+      rsnap.forEach(d => {
+        const r = d.data();
         const div = document.createElement("div");
         div.style.border = "1px solid #ccc";
+        div.style.margin = "8px";
         div.style.padding = "8px";
-        div.style.margin = "8px 0";
-
         div.innerHTML = `
           <b>${r.record_type}</b><br>
-          <b>${r.title || ""}</b><br>
           ${r.notes || ""}<br>
-          <small>${r.created_at?.toDate?.()}</small>
         `;
         recordsBox.appendChild(div);
       });
 
     } catch (e) {
-      console.error(e);
       status.innerText = "সমস্যা হয়েছে";
     }
   };
