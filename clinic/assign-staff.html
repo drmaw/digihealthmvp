@@ -2,78 +2,154 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8" />
-  <title>Assign Staff</title>
+  <title>Add Staff — DigiHealth</title>
 </head>
 <body>
 
-<h3>স্টাফ নিয়োগ</h3>
+<h2>Add Staff to Organization</h2>
 
-<input
-  id="searchInput"
-  placeholder="DigiHealth ID অথবা মোবাইল নম্বর"
-/>
-<button id="searchBtn">খুঁজুন</button>
+<p id="status"></p>
 
-<div id="staffBox" style="display:none;">
-  <p id="staffInfo"></p>
+<label>Email OR DigiHealth ID</label><br>
+<input id="searchInput" placeholder="email@example.com or 10-digit ID">
+<button id="searchBtn">Search</button>
 
-  <select id="orgRole">
-    <option value="doctor">Doctor</option>
-    <option value="nurse">Nurse</option>
-    <option value="lab">Lab Technician</option>
-    <option value="pathologist">Pathologist</option>
+<hr>
+
+<div id="resultBox" style="display:none;">
+  <p><b>Name:</b> <span id="name"></span></p>
+  <p><b>Email:</b> <span id="email"></span></p>
+  <p><b>Current Role:</b> <span id="role"></span></p>
+
+  <label>Assign Role</label><br>
+  <select id="roleSelect">
+    <option value="">Select role</option>
     <option value="assistant_manager">Assistant Manager</option>
-  </select>
+    <option value="staff">Staff</option>
+    <option value="representative">Representative</option>
+  </select><br><br>
 
-  <button id="assignBtn">Assign</button>
+  <button id="assignBtn">Assign to Organization</button>
 </div>
 
-<pre id="msg"></pre>
+<hr>
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-import { requireRole } from "../js/guard.js";
-import { searchUser } from "../js/search.js";
-import { db } from "../js/firebase.js";
-import {
-  doc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import {
+    collection,
+    query,
+    where,
+    getDocs,
+    updateDoc,
+    doc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const { profile } = await requireRole(["manager"]);
+  let currentUser = null;
+  let targetUser = null;
 
-let foundUser = null;
+  // 🔐 Only managers
+  requireAuth(
+    ["clinic_manager", "assistant_manager"],
+    (profile) => {
+      currentUser = profile;
+    }
+  );
 
-searchBtn.onclick = async () => {
-  msg.textContent = "";
-  staffBox.style.display = "none";
+  document.getElementById("searchBtn").onclick = async () => {
+    const input = document.getElementById("searchInput").value.trim();
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = "Searching...";
+    targetUser = null;
+    document.getElementById("resultBox").style.display = "none";
 
-  const user = await searchUser(searchInput.value);
+    if (!input) {
+      statusEl.innerText = "Enter email or ID";
+      return;
+    }
 
-  if (!user) {
-    msg.textContent = "কোনো ব্যবহারকারী পাওয়া যায়নি";
-    return;
-  }
+    try {
+      const usersRef = collection(db, "users");
 
-  foundUser = user;
+      const q = isNaN(input)
+        ? query(usersRef, where("email", "==", input))
+        : query(usersRef, where("health_id_10", "==", input));
 
-  staffInfo.innerText =
-    `নাম: ${user.name || ""}\n` +
-    `DigiHealth ID: ${user.digihealth_id}\n` +
-    `বর্তমান ভূমিকা: ${user.role_id}`;
+      const snap = await getDocs(q);
 
-  staffBox.style.display = "block";
-};
+      if (snap.empty) {
+        statusEl.innerText = "User not found";
+        return;
+      }
 
-assignBtn.onclick = async () => {
-  if (!foundUser) return;
+      const d = snap.docs[0];
+      const user = { uid: d.id, ...d.data() };
 
-  await updateDoc(doc(db, "users", foundUser.uid), {
-    organization_id: profile.organization_id,
-    organization_role: orgRole.value
-  });
+      // ❌ Blocks
+      if (user.role_id === "admin") {
+        statusEl.innerText = "Admin cannot be assigned";
+        return;
+      }
 
-  msg.textContent = "স্টাফ সফলভাবে নিয়োগ করা হয়েছে";
-};
+      if (user.organization_id) {
+        statusEl.innerText = "User already belongs to an organization";
+        return;
+      }
+
+      if (user.status !== "active") {
+        statusEl.innerText = "User is inactive";
+        return;
+      }
+
+      // ✅ Show user
+      targetUser = user;
+      document.getElementById("name").innerText = user.name || "-";
+      document.getElementById("email").innerText = user.email || "-";
+      document.getElementById("role").innerText = user.role_id;
+
+      document.getElementById("resultBox").style.display = "block";
+      statusEl.innerText = "User found";
+
+    } catch (e) {
+      console.error(e);
+      statusEl.innerText = "Error occurred";
+    }
+  };
+
+  document.getElementById("assignBtn").onclick = async () => {
+    const role = document.getElementById("roleSelect").value;
+    const statusEl = document.getElementById("status");
+
+    if (!targetUser || !role) {
+      statusEl.innerText = "Select role first";
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "users", targetUser.uid), {
+        role_id: role,
+        organization_id: currentUser.organization_id,
+        approved: true,
+        status: "active"
+      });
+
+      statusEl.innerText = "Staff assigned successfully";
+      document.getElementById("resultBox").style.display = "none";
+
+    } catch (e) {
+      console.error(e);
+      statusEl.innerText = "Assignment failed";
+    }
+  };
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
