@@ -1,27 +1,20 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>DigiHealth — Profile View</title>
+  <meta charset="UTF-8">
+  <title>DigiHealth – Profile</title>
 </head>
 <body>
 
-<h2>My Profile</h2>
-
+<h2>Profile</h2>
 <p id="status">Loading...</p>
 
 <form id="profileForm" style="display:none">
-
   <label>Name</label><br>
   <input id="name"><br><br>
 
   <label>Gender</label><br>
-  <select id="gender">
-    <option value="">--</option>
-    <option value="male">Male</option>
-    <option value="female">Female</option>
-    <option value="other">Other</option>
-  </select><br><br>
+  <input id="gender"><br><br>
 
   <label>Age</label><br>
   <input id="age" type="number"><br><br>
@@ -39,112 +32,56 @@
 <button id="logoutBtn">Logout</button>
 
 <script type="module">
-  import { requireAuth } from "/js/auth_guard.js";
-  import { auth, db } from "/js/firebase.js";
-  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getProfilePermissions } from "/js/profile_field_access.js";
+import { requireAuth } from "/js/auth_guard.js";
+import { db } from "/js/firebase.js";
+import { doc, getDoc, updateDoc } from
+  "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+import { signOut } from
+  "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import {
+  canViewProfile,
+  canEditProfile
+} from "/js/access_control.js";
 
-  const statusEl = document.getElementById("status");
-  const form = document.getElementById("profileForm");
+const params = new URLSearchParams(location.search);
+const targetUid = params.get("uid");
 
-  const nameEl = document.getElementById("name");
-  const genderEl = document.getElementById("gender");
-  const ageEl = document.getElementById("age");
-  const occupationEl = document.getElementById("occupation");
-  const addressEl = document.getElementById("address");
+const statusEl = document.getElementById("status");
+const form = document.getElementById("profileForm");
 
-  const params = new URLSearchParams(window.location.search);
-  const targetUid = params.get("uid"); // null = own profile
+const fields = ["name","gender","age","occupation","address"];
+const inputs = Object.fromEntries(fields.map(f => [f, document.getElementById(f)]));
 
-  let currentUser = null;
-  let viewedUid = null;
-  let permissions = null;
+const currentUser = await requireAuth();
+const targetSnap = await getDoc(doc(db, "users", targetUid || currentUser.uid));
+const targetUser = { uid: targetSnap.id, ...targetSnap.data() };
 
-  /* 🔐 Auth guard */
-  requireAuth(
-    ["patient", "doctor", "clinic_manager", "assistant_manager", "admin", "staff"],
-    async (profile) => {
-      currentUser = profile;
-      viewedUid = targetUid || profile.uid;
-      await loadProfile();
-    }
-  );
+if (!canViewProfile(currentUser, targetUser)) {
+  statusEl.innerText = "Access denied";
+  throw new Error("Denied");
+}
 
-  async function loadProfile() {
-    statusEl.innerText = "Loading profile...";
+fields.forEach(f => inputs[f].value = targetUser[f] || "");
 
-    const snap = await getDoc(doc(db, "users", viewedUid));
-    if (!snap.exists()) {
-      statusEl.innerText = "Profile not found";
-      return;
-    }
+if (!canEditProfile(currentUser, targetUser)) {
+  fields.forEach(f => inputs[f].disabled = true);
+  document.getElementById("saveBtn").style.display = "none";
+}
 
-    const data = snap.data();
+form.style.display = "block";
+statusEl.innerText = "Loaded";
 
-    permissions = getProfilePermissions(currentUser, viewedUid);
-    if (!permissions.view || permissions.view.length === 0) {
-      statusEl.innerText = "Access denied";
-      return;
-    }
+document.getElementById("saveBtn").onclick = async () => {
+  const data = {};
+  fields.forEach(f => data[f] = inputs[f].value);
+  await updateDoc(doc(db, "users", targetUser.uid), data);
+  alert("Saved");
+};
 
-    /* Populate fields */
-    nameEl.value = data.name || "";
-    genderEl.value = data.gender || "";
-    ageEl.value = data.age || "";
-    occupationEl.value = data.occupation || "";
-    addressEl.value = data.address || "";
-
-    /* Disable fields not editable */
-    ["name", "gender", "age", "occupation", "address"].forEach((field) => {
-      const el = document.getElementById(field);
-      if (
-        permissions.edit !== "all" &&
-        !permissions.edit.includes(field)
-      ) {
-        el.disabled = true;
-      }
-    });
-
-    /* Hide save button if no edit rights */
-    if (permissions.edit.length === 0) {
-      document.getElementById("saveBtn").style.display = "none";
-    }
-
-    form.style.display = "block";
-    statusEl.innerText = "Loaded";
-  }
-
-  /* 💾 Save allowed fields only */
-  document.getElementById("saveBtn").onclick = async () => {
-    if (!permissions || permissions.edit.length === 0) return;
-
-    const updates = {};
-
-    if (permissions.edit === "all" || permissions.edit.includes("name"))
-      updates.name = nameEl.value;
-
-    if (permissions.edit === "all" || permissions.edit.includes("gender"))
-      updates.gender = genderEl.value;
-
-    if (permissions.edit === "all" || permissions.edit.includes("age"))
-      updates.age = Number(ageEl.value);
-
-    if (permissions.edit === "all" || permissions.edit.includes("occupation"))
-      updates.occupation = occupationEl.value;
-
-    if (permissions.edit === "all" || permissions.edit.includes("address"))
-      updates.address = addressEl.value;
-
-    await updateDoc(doc(db, "users", viewedUid), updates);
-    statusEl.innerText = "Saved";
-  };
-
-  /* 🚪 Logout */
-  document.getElementById("logoutBtn").onclick = async () => {
-    await signOut(auth);
-    location.href = "/index.html";
-  };
+document.getElementById("logoutBtn").onclick = async () => {
+  await signOut((await import("/js/firebase.js")).auth);
+  location.href = "/index.html";
+};
 </script>
 
 </body>
