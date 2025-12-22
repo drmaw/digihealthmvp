@@ -8,26 +8,23 @@
 
 <h2>Patient Dashboard</h2>
 
-<p>
-  <strong>My DigiHealth ID:</strong>
-  <span id="healthId">Loading...</span>
-</p>
+<p><strong>My DigiHealth ID:</strong></p>
+<p id="healthId">Loading...</p>
 
 <h3>My QR Code</h3>
-<img id="qrImage" width="180" height="180" alt="QR Code will appear here" />
+<img id="qrImg" width="180" height="180" />
 
 <br><br>
 <button id="logoutBtn">Logout</button>
 
 <script type="module">
   import { auth, db } from "/js/firebase.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { onAuthStateChanged, signOut } from "firebase/auth";
+  import { doc, getDoc } from "firebase/firestore";
   import { generateProfileQR } from "/js/qr.js";
 
   const healthIdEl = document.getElementById("healthId");
-  const qrImg = document.getElementById("qrImage");
-  const logoutBtn = document.getElementById("logoutBtn");
+  const qrImg = document.getElementById("qrImg");
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -39,32 +36,32 @@
       const snap = await getDoc(doc(db, "users", user.uid));
 
       if (!snap.exists()) {
-        healthIdEl.textContent = "Profile not found";
+        healthIdEl.innerText = "Profile not found";
         return;
       }
 
       const data = snap.data();
 
+      // 🔴 REQUIRED FIELD
       if (!data.health_id_10) {
-        healthIdEl.textContent = "Health ID missing";
+        healthIdEl.innerText = "health_id_10 missing";
         return;
       }
 
-      // 1️⃣ Show ID
-      healthIdEl.textContent = data.health_id_10;
+      healthIdEl.innerText = data.health_id_10;
 
-      // 2️⃣ Generate QR
+      // ✅ GENERATE QR
       generateProfileQR(qrImg, {
         health_id_10: data.health_id_10
       });
 
     } catch (err) {
       console.error(err);
-      healthIdEl.textContent = "Error loading profile";
+      healthIdEl.innerText = "Error loading profile";
     }
   });
 
-  logoutBtn.onclick = async () => {
+  document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     window.location.href = "/index.html";
   };
