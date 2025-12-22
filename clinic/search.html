@@ -1,149 +1,115 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <title>রোগী খুঁজুন</title>
+  <meta charset="UTF-8">
+  <title>Patient Search — DigiHealth</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f6f7f9;
+      background: #f4f6f8;
       margin: 0;
-      padding: 16px;
-    }
-
-    h2 {
-      margin-top: 0;
+      padding: 20px;
     }
 
     .card {
-      background: #fff;
-      padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       max-width: 500px;
       margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,.1);
     }
 
     input {
       width: 100%;
       padding: 10px;
-      font-size: 16px;
       margin-bottom: 10px;
+      font-size: 16px;
     }
 
     button {
-      padding: 10px 16px;
+      padding: 10px;
       font-size: 16px;
-      background: #0d6efd;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
+      margin-right: 5px;
       cursor: pointer;
     }
 
-    button:disabled {
-      background: #999;
-    }
-
-    pre {
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 6px;
+    #result {
+      margin-top: 15px;
       white-space: pre-wrap;
-      margin-top: 12px;
-      font-size: 14px;
-    }
-
-    .hint {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 8px;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="card">
-    <h2>🔍 রোগী খুঁজুন</h2>
+<div class="card">
+  <h3>🔍 Patient Search</h3>
 
-    <div class="hint">
-      মোবাইল নম্বর অথবা DigiHealth ID লিখুন
-    </div>
+  <input
+    id="searchKey"
+    placeholder="017XXXXXXXX or DigiHealth ID"
+  />
 
-    <input
-      id="searchKey"
-      placeholder="যেমন: 017XXXXXXXX বা DigiHealth ID"
-    />
+  <button id="searchBtn">Search</button>
+  <button onclick="openQR()">📷 Scan QR</button>
 
-    <button id="findBtn">খুঁজুন</button>
+  <div id="result"></div>
+</div>
 
-    <pre id="result"></pre>
-  </div>
+<script type="module">
+  import { requireRole } from "/js/auth_guard.js";
+  import { searchUser } from "/js/search.js";
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      query,
-      where,
-      getDocs
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  let currentUser = null;
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBQ...",
-      authDomain: "digihealth-65f04.firebaseapp.com",
-      projectId: "digihealth-65f04"
-    };
+  // Clinic roles only
+  requireRole(
+    ["clinic_manager", "assistant_manager", "staff", "doctor"],
+    (profile) => {
+      currentUser = profile;
+    }
+  );
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const btn = document.getElementById("searchBtn");
+  const input = document.getElementById("searchKey");
+  const result = document.getElementById("result");
 
-    const btn = document.getElementById("findBtn");
-    const resultBox = document.getElementById("result");
+  btn.onclick = async () => {
+    result.innerText = "";
 
-    btn.onclick = async () => {
-      const key = document.getElementById("searchKey").value.trim();
+    const key = input.value.trim();
+    if (!key) {
+      result.innerText = "❌ Enter ID or phone number";
+      return;
+    }
 
-      if (!key) {
-        alert("অনুগ্রহ করে তথ্য লিখুন");
-        return;
-      }
+    result.innerText = "Searching...";
 
-      btn.disabled = true;
-      resultBox.textContent = "খোঁজা হচ্ছে...";
+    const user = await searchUser(key);
 
-      let q = query(
-        collection(db, "users"),
-        where("phone", "==", key)
-      );
+    if (!user) {
+      result.innerText = "❌ Patient not found";
+      return;
+    }
 
-      let snap = await getDocs(q);
+    result.innerHTML =
+      `👤 Name: ${user.name || "-"}\n` +
+      `🆔 DigiHealth ID: ${user.digihealth_id}\n` +
+      `📞 Mobile: ${user.mobile || "-"}\n\n` +
+      `<a href="/profile/view.html?uid=${user.uid}">
+        ➜ View Full Profile
+      </a>`;
+  };
 
-      if (snap.empty) {
-        q = query(
-          collection(db, "users"),
-          where("health_id_10", "==", key)
-        );
-        snap = await getDocs(q);
-      }
-
-      if (snap.empty) {
-        resultBox.textContent = "❌ কোনো রোগী পাওয়া যায়নি";
-        btn.disabled = false;
-        return;
-      }
-
-      snap.forEach(doc => {
-        resultBox.textContent =
-          JSON.stringify(doc.data(), null, 2);
-      });
-
-      btn.disabled = false;
-    };
-  </script>
+  // QR open
+  window.openQR = () => {
+    location.href =
+      "/qr/scan.html?return=" +
+      encodeURIComponent(window.location.pathname);
+  };
+</script>
 
 </body>
 </html>
