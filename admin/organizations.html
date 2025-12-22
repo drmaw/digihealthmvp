@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin — Organization Approvals</title>
+</head>
+<body>
+
+<h2>Pending Organization Requests</h2>
+<p id="status">Loading...</p>
+
+<table border="1" cellpadding="6">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Reg No</th>
+      <th>Owner UID</th>
+      <th>License</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="orgTable"></tbody>
+</table>
+
+<hr>
+<button id="logoutBtn">Logout</button>
+
+<script type="module">
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import {
+    collection,
+    query,
+    where,
+    getDocs,
+    updateDoc,
+    doc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  const statusEl = document.getElementById("status");
+  const table = document.getElementById("orgTable");
+
+  // 🔐 Admin only
+  requireAuth(["admin"], async () => {
+    loadPending();
+  });
+
+  async function loadPending() {
+    table.innerHTML = "";
+    statusEl.innerText = "Loading pending organizations...";
+
+    const q = query(
+      collection(db, "organizations"),
+      where("status", "==", "pending")
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      statusEl.innerText = "No pending organizations";
+      return;
+    }
+
+    statusEl.innerText = "";
+
+    snap.forEach(docSnap => {
+      const org = docSnap.data();
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${org.name}</td>
+        <td>${org.registration_no || "-"}</td>
+        <td>${org.owner_uid}</td>
+        <td>
+          <a href="${org.license_image_url}" target="_blank">View</a>
+        </td>
+        <td>
+          <button data-id="${docSnap.id}" data-owner="${org.owner_uid}">
+            Approve
+          </button>
+        </td>
+      `;
+
+      tr.querySelector("button").onclick = approveOrg;
+      table.appendChild(tr);
+    });
+  }
+
+  async function approveOrg(e) {
+    const orgId = e.target.dataset.id;
+    const ownerUid = e.target.dataset.owner;
+
+    if (!confirm("Approve this organization?")) return;
+
+    // 1️⃣ Activate organization
+    await updateDoc(doc(db, "organizations", orgId), {
+      status: "active"
+    });
+
+    // 2️⃣ Promote user to clinic_manager
+    await updateDoc(doc(db, "users", ownerUid), {
+      role_id: "clinic_manager",
+      approved: true,
+      is_org_owner: true
+    });
+
+    alert("Organization approved");
+    loadPending();
+  }
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
+</script>
+
+</body>
+</html>
