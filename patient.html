@@ -4,68 +4,78 @@
   <meta charset="UTF-8" />
   <title>Patient Dashboard</title>
 </head>
+
 <body>
+  <h2>Patient Dashboard</h2>
 
-<h2>Patient Dashboard</h2>
+  <p><strong>My DigiHealth ID:</strong></p>
+  <p id="healthId">Loading...</p>
 
-<p><strong>My DigiHealth ID:</strong></p>
-<p id="healthId">Loading...</p>
+  <h3>My QR Code</h3>
+  <img id="qrImg" width="180" height="180" />
 
-<h3>My QR Code</h3>
-<img id="qrImg" width="180" height="180" />
+  <br><br>
+  <button id="logoutBtn">Logout</button>
 
-<br><br>
-<button id="logoutBtn">Logout</button>
+  <script type="module">
+    import { auth, db } from "/js/firebase.js";
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, updateDoc } from "firebase/firestore";
+    import { generateProfileQR } from "/js/qr.js";
 
-<script type="module">
-  import { auth, db } from "/js/firebase.js";
-  import { onAuthStateChanged, signOut } from "firebase/auth";
-  import { doc, getDoc } from "firebase/firestore";
-  import { generateProfileQR } from "/js/qr.js";
+    const healthIdEl = document.getElementById("healthId");
+    const qrImg = document.getElementById("qrImg");
 
-  const healthIdEl = document.getElementById("healthId");
-  const qrImg = document.getElementById("qrImg");
+    function generateHealthId10(uid) {
+      let hash = 0;
+      for (let i = 0; i < uid.length; i++) {
+        hash = (hash << 5) - hash + uid.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString().padStart(10, "0").slice(0, 10);
+    }
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/index.html";
+        return;
+      }
+
+      try {
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) {
+          healthIdEl.innerText = "Profile not found";
+          return;
+        }
+
+        let data = snap.data();
+        let healthId = data.health_id_10;
+
+        // 🔥 AUTO-CREATE IF MISSING
+        if (!healthId) {
+          healthId = generateHealthId10(user.uid);
+          await updateDoc(ref, { health_id_10: healthId });
+        }
+
+        healthIdEl.innerText = healthId;
+
+        // ✅ GENERATE QR
+        generateProfileQR(qrImg, {
+          health_id_10: healthId
+        });
+
+      } catch (err) {
+        console.error(err);
+        healthIdEl.innerText = "Error loading profile";
+      }
+    });
+
+    document.getElementById("logoutBtn").onclick = async () => {
+      await signOut(auth);
       window.location.href = "/index.html";
-      return;
-    }
-
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
-
-      if (!snap.exists()) {
-        healthIdEl.innerText = "Profile not found";
-        return;
-      }
-
-      const data = snap.data();
-
-      // 🔴 REQUIRED FIELD
-      if (!data.health_id_10) {
-        healthIdEl.innerText = "health_id_10 missing";
-        return;
-      }
-
-      healthIdEl.innerText = data.health_id_10;
-
-      // ✅ GENERATE QR
-      generateProfileQR(qrImg, {
-        health_id_10: data.health_id_10
-      });
-
-    } catch (err) {
-      console.error(err);
-      healthIdEl.innerText = "Error loading profile";
-    }
-  });
-
-  document.getElementById("logoutBtn").onclick = async () => {
-    await signOut(auth);
-    window.location.href = "/index.html";
-  };
-</script>
-
+    };
+  </script>
 </body>
 </html>
