@@ -15,47 +15,84 @@
 <p id="status"></p>
 
 <script type="module">
-import { auth } from "./js/firebase.js";
-import { requireAuth } from "./js/auth.js";
-import {
-  signInWithEmailAndPassword
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  doc,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./js/firebase.js";
+  import { auth, db } from "./js/firebase.js";
+  import {
+    signInWithEmailAndPassword,
+    setPersistence,
+    browserLocalPersistence
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const status = document.getElementById("status");
+  const statusEl = document.getElementById("status");
+  const emailEl = document.getElementById("email");
+  const passwordEl = document.getElementById("password");
 
-document.getElementById("loginBtn").onclick = async () => {
-  status.innerText = "Logging in...";
-  try {
-    const email = email.value;
-    const password = password.value;
+  // Ensure session persists properly
+  await setPersistence(auth, browserLocalPersistence);
 
-    const res = await signInWithEmailAndPassword(auth, email, password);
+  document.getElementById("loginBtn").onclick = async () => {
+    statusEl.innerText = "Logging in...";
 
-    const snap = await getDoc(doc(db, "users", res.user.uid));
-    if (!snap.exists()) {
-      status.innerText = "User profile not found";
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+
+    if (!email || !password) {
+      statusEl.innerText = "Email and password required";
       return;
     }
 
-    const role = snap.data().role_id;
+    try {
+      // 1. Firebase Auth login
+      const res = await signInWithEmailAndPassword(auth, email, password);
 
-    /* CENTRAL ROUTING */
-    if (role === "admin") location.href = "/admin.html";
-    else if (role === "doctor") location.href = "/doctor.html";
-    else if (role === "manager") location.href = "/manager.html";
-    else if (role === "assistant_manager") location.href = "/assistant_manager.html";
-    else location.href = "/patient.html";
+      // 2. Fetch user profile from Firestore
+      const snap = await getDoc(doc(db, "users", res.user.uid));
 
-  } catch (e) {
-    console.error(e);
-    status.innerText = "Login failed";
-  }
-};
+      if (!snap.exists()) {
+        statusEl.innerText = "User profile not found in database";
+        return;
+      }
+
+      const profile = snap.data();
+
+      // 3. Approval gate (VERY IMPORTANT)
+      if (profile.approved !== true) {
+        statusEl.innerText = "Account not approved yet";
+        return;
+      }
+
+      if (profile.status !== "active") {
+        statusEl.innerText = "Account inactive";
+        return;
+      }
+
+      // 4. Role-based routing
+      switch (profile.role_id) {
+        case "admin":
+          location.href = "/admin.html";
+          break;
+        case "doctor":
+          location.href = "/doctor.html";
+          break;
+        case "clinic_manager":
+          location.href = "/manager.html";
+          break;
+        case "assistant_manager":
+          location.href = "/assistant_manager.html";
+          break;
+        case "patient":
+        default:
+          location.href = "/patient.html";
+      }
+
+    } catch (e) {
+      console.error("Login error:", e);
+      statusEl.innerText = e.message || "Login failed";
+    }
+  };
 </script>
 
 </body>
