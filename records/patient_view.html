@@ -1,90 +1,105 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <title>Patient – My Medical Records</title>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — My Medical Records</title>
 </head>
 <body>
 
-<h2>আমার মেডিকেল রেকর্ড</h2>
+<h2>My Medical Records</h2>
 
-<p id="status">লোড হচ্ছে...</p>
-<hr>
+<p id="status">Loading...</p>
 
-<div id="records"></div>
+<section id="records"></section>
+
+<hr />
+<button id="logoutBtn">Logout</button>
 
 <script type="module">
-  import { db } from "../js/firebase.js";
-  import { requireRole } from "../js/auth.js";
-
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db } from "/js/firebase.js";
+  import { signOut } from
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import {
     collection,
+    getDocs,
     query,
     where,
-    getDocs,
     doc,
-    updateDoc
+    updateDoc,
+    deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const status = document.getElementById("status");
-  const recordsBox = document.getElementById("records");
+  let currentUser = null;
 
-  requireRole(["patient"], async (patient) => {
-    try {
-      const recordsRef = collection(db, "patient_records");
-      const q = query(recordsRef, where("patient_uid", "==", patient.uid));
-      const snap = await getDocs(q);
-
-      if (snap.empty) {
-        status.innerText = "কোনো রেকর্ড নেই";
-        return;
-      }
-
-      status.innerText = "";
-
-      snap.forEach(d => {
-        const r = d.data();
-        const div = document.createElement("div");
-
-        div.style.border = "1px solid #ccc";
-        div.style.padding = "10px";
-        div.style.margin = "10px 0";
-
-        const visibility = r.visibility || "public";
-
-        div.innerHTML = `
-          <b>টাইপ:</b> ${r.record_type}<br>
-          <b>শিরোনাম:</b> ${r.title || ""}<br>
-          <b>নোট:</b><br>${r.notes || ""}<br>
-          <b>দৃশ্যমানতা:</b>
-          <select data-id="${d.id}">
-            <option value="public" ${visibility==="public"?"selected":""}>Public</option>
-            <option value="private" ${visibility==="private"?"selected":""}>Private</option>
-          </select>
-          <br>
-          <small>
-            ${r.created_at?.toDate ? r.created_at.toDate() : ""}
-          </small>
-        `;
-
-        recordsBox.appendChild(div);
-      });
-
-      /* Handle visibility change */
-      recordsBox.querySelectorAll("select").forEach(sel => {
-        sel.onchange = async () => {
-          const id = sel.getAttribute("data-id");
-          await updateDoc(doc(db, "patient_records", id), {
-            visibility: sel.value
-          });
-        };
-      });
-
-    } catch (e) {
-      console.error(e);
-      status.innerText = "লোড করতে সমস্যা হয়েছে";
-    }
+  // 🔐 Guard: Patient only (self)
+  requireAuth(["patient"], async (profile) => {
+    currentUser = profile;
+    loadRecords();
   });
+
+  async function loadRecords() {
+    const statusEl = document.getElementById("status");
+    statusEl.innerText = "Loading records...";
+
+    const q = query(
+      collection(db, "patient_records"),
+      where("patient_uid", "==", currentUser.uid)
+    );
+
+    const snap = await getDocs(q);
+    const box = document.getElementById("records");
+    box.innerHTML = "";
+
+    if (snap.empty) {
+      statusEl.innerText = "No records found";
+      return;
+    }
+
+    snap.forEach(docSnap => {
+      const r = { id: docSnap.id, ...docSnap.data() };
+      const div = document.createElement("div");
+      div.style.border = "1px solid #ccc";
+      div.style.margin = "10px";
+      div.style.padding = "10px";
+
+      div.innerHTML = `
+        <b>${r.record_type}</b><br/>
+        <b>${r.title || ""}</b><br/>
+        ${r.notes || ""}<br/>
+        <small>Visibility: ${r.visibility}</small><br/><br/>
+        <button class="toggleBtn">Toggle Visibility</button>
+        <button class="deleteBtn" style="color:red;">Delete</button>
+      `;
+
+      // Toggle visibility
+      div.querySelector(".toggleBtn").onclick = async () => {
+        const newVis = r.visibility === "public" ? "private" : "public";
+        await updateDoc(doc(db, "patient_records", r.id), {
+          visibility: newVis
+        });
+        loadRecords();
+      };
+
+      // Delete record
+      div.querySelector(".deleteBtn").onclick = async () => {
+        if (!confirm("Are you sure you want to permanently delete this record?")) {
+          return;
+        }
+        await deleteDoc(doc(db, "patient_records", r.id));
+        loadRecords();
+      };
+
+      box.appendChild(div);
+    });
+
+    statusEl.innerText = "Loaded";
+  }
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
