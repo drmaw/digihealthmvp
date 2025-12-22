@@ -1,132 +1,90 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <title>নতুন মেডিকেল রেকর্ড</title>
+  <meta charset="UTF-8">
+  <title>Add Medical Record</title>
 </head>
 <body>
 
-<button onclick="logout()">লগআউট</button>
-<hr>
-
 <h2>নতুন মেডিকেল রেকর্ড যোগ করুন</h2>
 
-<label>রোগীর DigiHealth ID অথবা মোবাইল নম্বর</label><br>
-<input id="patientInput" placeholder="3845735707" /><br><br>
+<input id="patientInput" placeholder="Patient DigiHealth ID / Mobile">
+<br><br>
 
-<label>রোগ নির্ণয়</label><br>
-<textarea id="diagnosis"></textarea><br><br>
+<input id="title" placeholder="রোগ নির্ণয় / শিরোনাম">
+<br><br>
 
-<label>প্রেসক্রিপশন / নোট</label><br>
-<textarea id="note"></textarea><br><br>
+<textarea id="notes" placeholder="প্রেসক্রিপশন / নোট"></textarea>
+<br><br>
 
 <button id="saveBtn">সংরক্ষণ করুন</button>
-
 <p id="status"></p>
 
 <script type="module">
-/* ---------------- Firebase imports ---------------- */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  getAuth,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { db } from "../js/firebase.js";
+import { requireRole } from "../js/auth.js";
 import {
-  getFirestore,
   collection,
+  addDoc,
+  serverTimestamp,
   query,
   where,
-  getDocs,
-  addDoc,
-  serverTimestamp
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* ---------------- Firebase config ---------------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyBQUDMQgc57d4wWSW2auFyYCS19q8vxBU4",
-  authDomain: "digihealth-65f04.firebaseapp.com",
-  projectId: "digihealth-65f04",
-  storageBucket: "digihealth-65f04.appspot.com",
-  messagingSenderId: "704628949252",
-  appId: "1:704628949252:web:b38a476bd9c4259f829051"
-};
+const status = document.getElementById("status");
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+requireRole(["doctor"], async (doctor) => {
+  document.getElementById("saveBtn").onclick = async () => {
+    status.innerText = "সংরক্ষণ হচ্ছে...";
 
-const statusBox = document.getElementById("status");
+    const input = patientInput.value.trim();
+    const titleVal = title.value.trim();
+    const notesVal = notes.value.trim();
 
-/* ---------------- Auth guard ---------------- */
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    location.href = "/index.html";
-    return;
-  }
-
-  document.getElementById("saveBtn").onclick = () => saveRecord(user);
-});
-
-/* ---------------- Save record ---------------- */
-async function saveRecord(user) {
-  statusBox.innerText = "খোঁজা হচ্ছে...";
-
-  const input = document.getElementById("patientInput").value.trim();
-  const diagnosis = document.getElementById("diagnosis").value.trim();
-  const note = document.getElementById("note").value.trim();
-
-  if (!input || !diagnosis) {
-    statusBox.innerText = "সব তথ্য পূরণ করুন";
-    return;
-  }
-
-  try {
-    const usersRef = collection(db, "users");
-    let q;
-
-    // Detect DigiHealth ID (10 digits) vs phone
-    if (/^\d{10}$/.test(input)) {
-      q = query(usersRef, where("health_id_10", "==", input));
-    } else {
-      q = query(usersRef, where("phone", "==", input));
-    }
-
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      statusBox.innerText = "রোগী পাওয়া যায়নি";
+    if (!input || !titleVal) {
+      status.innerText = "সব তথ্য দিন";
       return;
     }
 
-    const patientDoc = snap.docs[0];
+    try {
+      // Find patient
+      const usersRef = collection(db, "users");
+      const q = isNaN(input)
+        ? query(usersRef, where("phone", "==", input))
+        : query(usersRef, where("health_id_10", "==", input));
 
-    await addDoc(collection(db, "patient_records"), {
-      patient_uid: patientDoc.id,
-      diagnosis: diagnosis,
-      note: note,
-      created_by: user.uid,
-      created_at: serverTimestamp()
-    });
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        status.innerText = "রোগী পাওয়া যায়নি";
+        return;
+      }
 
-    statusBox.innerText = "রেকর্ড সফলভাবে সংরক্ষণ হয়েছে";
+      const patientUid = snap.docs[0].id;
 
-    // clear form
-    document.getElementById("diagnosis").value = "";
-    document.getElementById("note").value = "";
+      // Create record
+      await addDoc(collection(db, "patient_records"), {
+        patient_uid: patientUid,
+        created_by_uid: doctor.uid,
+        created_by_role: "doctor",
+        record_type: "general",
+        title: titleVal,
+        notes: notesVal,
+        visibility: "public",   // default
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      });
 
-  } catch (err) {
-    console.error(err);
-    statusBox.innerText = "সমস্যা হয়েছে, কনসোল দেখুন";
-  }
-}
+      status.innerText = "রেকর্ড সংরক্ষিত হয়েছে";
+      title.value = "";
+      notes.value = "";
 
-/* ---------------- Logout ---------------- */
-window.logout = function () {
-  signOut(auth).then(() => {
-    location.href = "/index.html";
-  });
-};
+    } catch (e) {
+      console.error(e);
+      status.innerText = "সমস্যা হয়েছে";
+    }
+  };
+});
 </script>
 
 </body>
