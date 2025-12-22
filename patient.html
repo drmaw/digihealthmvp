@@ -1,48 +1,70 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>DigiHealth — Patient Dashboard</title>
+  <meta charset="UTF-8">
+  <title>Patient Dashboard</title>
 </head>
 <body>
 
-<h2>Patient Dashboard</h2>
+<h1>Patient Dashboard</h1>
 
-<nav>
-  <ul>
-    <li><a href="/profile/view.html">My Profile</a></li>
-    <li><a href="/appointments/my.html">My Appointments</a></li>
-    <li><a href="/records/patient_view.html">My Medical Records</a></li>
-  </ul>
-</nav>
+<p><b>My DigiHealth ID:</b></p>
+<p id="healthId">Loading...</p>
 
-<hr />
+<h3>My QR Code</h3>
+<div id="qr"></div>
 
-<section>
-  <h3>My DigiHealth ID</h3>
-  <p id="healthId">Loading...</p>
-</section>
-
-<hr />
-
+<hr>
 <button id="logoutBtn">Logout</button>
 
+<!-- QR library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
 <script type="module">
-  import { requireAuth } from "/js/auth_guard.js";
-  import { auth } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // 🔐 Guard: Patient (everyone has patient access)
-  requireAuth(
-    ["patient", "doctor", "clinic_manager", "assistant_manager", "representative"],
-    async (profile) => {
-      document.getElementById("healthId").innerText =
-        profile.health_id_10 || "Not assigned";
+  const healthIdEl = document.getElementById("healthId");
+  const qrEl = document.getElementById("qr");
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      location.href = "/index.html";
+      return;
     }
-  );
 
-  // Logout
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+
+      if (!snap.exists()) {
+        healthIdEl.innerText = "Profile missing";
+        return;
+      }
+
+      const data = snap.data();
+      const digiId = data.digihealth_id;
+
+      if (!digiId) {
+        healthIdEl.innerText = "DigiHealth ID not assigned";
+        return;
+      }
+
+      healthIdEl.innerText = digiId;
+
+      qrEl.innerHTML = "";
+      new QRCode(qrEl, {
+        text: digiId,
+        width: 180,
+        height: 180
+      });
+
+    } catch (e) {
+      console.error(e);
+      healthIdEl.innerText = "Error loading profile";
+    }
+  });
+
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
