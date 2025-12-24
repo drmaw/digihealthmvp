@@ -4,40 +4,73 @@
   <meta charset="UTF-8" />
   <title>DigiHealth — Admin Dashboard</title>
 </head>
+
 <body>
 
 <h2>Admin Dashboard</h2>
 
+<!-- =========================
+     NAVIGATION
+     ========================= -->
 <nav>
   <ul>
-    <li><a href="/admin/approvals.html">Approvals</a></li>
-    <li><a href="/admin/users.html">Users</a></li>
-    <li><a href="/admin/representatives.html">Representatives</a></li>
-    <li><a href="/admin/logs.html">Activity Logs</a></li>
+    <li>
+      <a href="/admin/approvals.html">
+        Approvals
+      </a>
+    </li>
+    <li>
+      <a href="/admin/users.html">
+        Users
+      </a>
+    </li>
+    <li>
+      <a href="/admin/representative.html">
+        Representatives
+      </a>
+    </li>
+    <li>
+      <a href="/appointments/list.html">
+        Appointments
+      </a>
+    </li>
+    <li>
+      <a href="/admin/logs.html">
+        Activity Logs
+      </a>
+    </li>
   </ul>
 </nav>
 
 <hr />
 
+<!-- =========================
+     SYSTEM STATS
+     ========================= -->
 <section id="stats">
   <h3>System Statistics</h3>
-  <div id="statsBox">Loading...</div>
+  <div id="statsBox">Loading…</div>
 </section>
 
 <hr />
 
 <button id="logoutBtn">Logout</button>
 
+<!-- =========================
+     LOGIC
+     ========================= -->
 <script type="module">
   import { requireAuth } from "/js/auth_guard.js";
   import { auth } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getRoleStatistics } from "/js/admin_access.js";
 
-  // 🔐 Guard: Admin only
-  requireAuth(["admin"], async (adminProfile) => {
-    // Load stats
+  // --------------------------------------------------
+  // Admin only guard
+  // --------------------------------------------------
+  requireAuth("admin", async (adminProfile) => {
+
+    // Load role statistics
     const stats = await getRoleStatistics();
 
     document.getElementById("statsBox").innerHTML = `
@@ -51,7 +84,9 @@
     `;
   });
 
+  // --------------------------------------------------
   // Logout
+  // --------------------------------------------------
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
