@@ -4,67 +4,100 @@
   <meta charset="UTF-8" />
   <title>DigiHealth — Assistant Manager Dashboard</title>
 </head>
+
 <body>
 
 <h2>Assistant Manager Dashboard</h2>
 
+<!-- =========================
+     NO ORGANIZATION NOTICE
+     ========================= -->
 <div id="noOrgBox" style="display:none;">
-  <p>আপনি কোনো প্রতিষ্ঠানের সাথে যুক্ত নন।</p>
+  <p>আপনি কোনো ক্লিনিকের সাথে যুক্ত নন।</p>
 </div>
 
+<!-- =========================
+     MAIN ASSISTANT CONTENT
+     ========================= -->
 <div id="assistantContent" style="display:none;">
+
+  <!-- NAVIGATION -->
   <nav>
     <ul>
-      <li><a href="/appointments/my.html">Appointments</a></li>
-      <li><a href="/records/doctor_view.html">Search Patient Records</a></li>
+      <li>
+        <a href="/appointments/list.html">
+          Appointments
+        </a>
+      </li>
+      <li>
+        <a href="/records/doctor_view.html">
+          Search Patient Records
+        </a>
+      </li>
     </ul>
   </nav>
 
   <hr />
 
+  <!-- ORGANIZATION INFO -->
   <section>
     <h3>Organization Info</h3>
-    <div id="orgInfo">Loading...</div>
+    <div id="orgInfo">Loading…</div>
   </section>
+
 </div>
 
 <hr />
 
 <button id="logoutBtn">Logout</button>
 
+<!-- =========================
+     LOGIC
+     ========================= -->
 <script type="module">
   import { requireAuth } from "/js/auth_guard.js";
   import { auth, db } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // 🔐 Guard: Assistant Manager only
-  requireAuth(["assistant_manager"], async (profile) => {
+  // --------------------------------------------------
+  // Assistant Manager only guard
+  // --------------------------------------------------
+  requireAuth("assistant_manager", async (profile) => {
 
+    // No organization
     if (!profile.organization_id) {
       document.getElementById("noOrgBox").style.display = "block";
       return;
     }
 
+    // Has organization
     document.getElementById("assistantContent").style.display = "block";
 
     // Load organization info
-    const snap = await getDoc(doc(db, "organizations", profile.organization_id));
+    const snap = await getDoc(
+      doc(db, "organizations", profile.organization_id)
+    );
+
     if (!snap.exists()) {
-      document.getElementById("orgInfo").innerText = "প্রতিষ্ঠান পাওয়া যায়নি";
+      document.getElementById("orgInfo").innerText = "ক্লিনিক পাওয়া যায়নি।";
       return;
     }
 
     const org = snap.data();
+
     document.getElementById("orgInfo").innerHTML = `
       <p><b>Name:</b> ${org.name}</p>
       <p><b>Status:</b> ${org.status}</p>
     `;
   });
 
+  // --------------------------------------------------
   // Logout
+  // --------------------------------------------------
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
