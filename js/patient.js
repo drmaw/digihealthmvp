@@ -1,5 +1,5 @@
 import { requireAuth } from "./auth_guard.js";
-import { db } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 
 import {
   collection,
@@ -13,8 +13,14 @@ const recordsBox = document.getElementById("recordsBox");
 /* =========================
    LOAD PATIENT RECORDS
    ========================= */
-async function loadMyRecords(user) {
+async function loadMyRecords() {
   try {
+    const user = auth.currentUser;
+    if (!user) {
+      recordsBox.innerHTML = "<p>Not logged in.</p>";
+      return;
+    }
+
     const q = query(
       collection(db, "patient_records"),
       where("patient_uid", "==", user.uid)
@@ -32,8 +38,8 @@ async function loadMyRecords(user) {
       const d = doc.data();
       html += `
         <li>
-          <strong>Uploaded by:</strong> ${d.uploader_role || "Unknown"}<br>
-          <strong>Date:</strong> ${
+          <b>Uploaded by:</b> ${d.uploader_role || "Unknown"}<br>
+          <b>Date:</b> ${
             d.createdAt?.toDate
               ? d.createdAt.toDate().toLocaleString()
               : "N/A"
@@ -54,6 +60,6 @@ async function loadMyRecords(user) {
 /* =========================
    AUTH GUARD
    ========================= */
-requireAuth("patient", (profile) => {
-  loadMyRecords(profile);
+requireAuth("patient", () => {
+  loadMyRecords();
 });
