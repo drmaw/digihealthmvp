@@ -1,13 +1,13 @@
 // js/appointments_patient.js
 // --------------------------------------------------
-// Patient appointment request
+// Patient appointment request + audit logging
 // --------------------------------------------------
 
 import { db } from "./firebase.js";
 import {
   initAuth,
   isPatient,
-  currentUser
+  currentUserProfile
 } from "./auth.js";
 
 import {
@@ -39,8 +39,9 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  await addDoc(collection(db, "appointments"), {
-    patient_uid: currentUser.uid,
+  // Create appointment
+  const ref = await addDoc(collection(db, "appointments"), {
+    patient_uid: currentUserProfile.uid,
     doctor_uid: null,
     clinic_id: null,
     requested_by: "patient",
@@ -50,6 +51,16 @@ form.addEventListener("submit", async (e) => {
     notes: notesInput.value || null,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp()
+  });
+
+  // AUDIT LOG — appointment requested
+  await addDoc(collection(db, "audit_logs"), {
+    actor_uid: currentUserProfile.uid,
+    actor_role: currentUserProfile.role_id,
+    action: "appointment_requested",
+    appointment_id: ref.id,
+    patient_uid: currentUserProfile.uid,
+    timestamp: serverTimestamp()
   });
 
   alert("Appointment request submitted.");
