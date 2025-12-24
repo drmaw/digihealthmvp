@@ -1,157 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="stylesheet" href="/css/app.css">
   <meta charset="UTF-8" />
   <title>DigiHealth — Patient Dashboard</title>
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Basic styling (keep simple) -->
+  <link rel="stylesheet" href="/css/app.css">
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f4f6f8;
-    }
-    header {
-      background: #0d6efd;
-      color: white;
-      padding: 12px 16px;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-    }
-    main {
-      padding: 16px;
-    }
-    section {
-      background: white;
-      padding: 16px;
-      margin-bottom: 16px;
-      border-radius: 6px;
-    }
-    section h2 {
-      margin-top: 0;
-      font-size: 18px;
-    }
-    .field {
-      margin-bottom: 8px;
-    }
-    .label {
-      font-weight: bold;
-    }
-    button {
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-    .danger {
-      background: #dc3545;
-      color: white;
-      border: none;
-    }
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; }
+    header { background:#0d6efd; color:#fff; padding:12px; }
+    main { padding:16px; }
+    section { background:#fff; padding:16px; margin-bottom:16px; border-radius:6px; }
+    h2 { margin-top:0; }
+    button { padding:8px 12px; }
+    .danger { background:#dc3545; color:#fff; border:none; }
   </style>
 </head>
 
 <body>
 
-  <!-- ================================================= -->
-  <!-- HEADER -->
-  <!-- ================================================= -->
-  <header>
-    <h1>Patient Dashboard</h1>
-  </header>
+<header>
+  <h1>Patient Dashboard</h1>
+</header>
 
-  <!-- ================================================= -->
-  <!-- MAIN CONTENT -->
-  <!-- ================================================= -->
-  <main>
+<main>
 
-    <!-- =========================
-         APPOINTMENTS
-         ========================= -->
-    <section>
-      <h2>Appointments</h2>
+  <section>
+    <h2>Appointments</h2>
+    <ul>
+      <li><a href="/appointments/request.html">Request Appointment</a></li>
+      <li><a href="/appointments/my.html">My Appointments</a></li>
+    </ul>
+  </section>
 
-      <ul>
-        <li>
-          <a href="/appointments/request.html">
-            Request Appointment
-          </a>
-        </li>
-        <li>
-          <a href="/appointments/my.html">
-            My Appointments
-          </a>
-        </li>
-      </ul>
-    </section>
+  <section>
+    <h2>My Profile</h2>
+    <p><b>Name:</b> <span id="pName">—</span></p>
+    <p><b>Phone:</b> <span id="pPhone">—</span></p>
+    <p><b>Health ID:</b> <span id="pHealthId">—</span></p>
+  </section>
 
-    <!-- =========================
-         PROFILE
-         ========================= -->
-    <section id="profile-section">
-      <h2>My Profile</h2>
+  <section>
+    <h2>My QR Code</h2>
+    <div id="qrBox"></div>
+    <br>
+    <a href="/qr/scan.html">Go to QR Scanner</a>
+  </section>
 
-      <div class="field">
-        <span class="label">Name:</span>
-        <span id="profile-name">—</span>
-      </div>
+  <section>
+    <h2>My Medical Records</h2>
+    <div id="recordsBox">Loading…</div>
+  </section>
 
-      <div class="field">
-        <span class="label">Phone:</span>
-        <span id="profile-phone">—</span>
-      </div>
+  <section>
+    <button id="logoutBtn" class="danger">Logout</button>
+  </section>
 
-      <div class="field">
-        <span class="label">User ID:</span>
-        <span id="profile-user-id">—</span>
-      </div>
-    </section>
+</main>
 
-    <!-- =========================
-         QR CODE
-         ========================= -->
-    <section id="qr-section">
-      <h2>My QR Code</h2>
-
-      <p>
-        Show this QR code to a doctor or clinic to quickly access your record.
-      </p>
-
-      <div id="qr-container">
-        <!-- QR will be rendered here -->
-      </div>
-
-      <br />
-      <a href="/qr/scan.html">Go to QR Scanner</a>
-    </section>
-
-    <!-- =========================
-         RECORDS
-         ========================= -->
-    <section id="records-section">
-      <h2>My Medical Records</h2>
-
-      <div id="recordsBox">
-        <!-- Records will load here -->
-      </div>
-    </section>
-
-    <!-- =========================
-         LOGOUT
-         ========================= -->
-    <section>
-      <button id="logoutBtn" class="danger">Logout</button>
-    </section>
-
-  </main>
-
-  <!-- ================================================= -->
-  <!-- LOGIC -->
-  <!-- ================================================= -->
-  <script type="module" src="/js/patient.js"></script>
-
+<script type="module" src="/js/patient.js"></script>
 </body>
 </html>
