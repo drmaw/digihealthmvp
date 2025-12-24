@@ -21,7 +21,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  loadMyAppointments(user.uid);
+  loadMyAppointments(uid);
 });
 
 async function loadMyAppointments(uid) {
