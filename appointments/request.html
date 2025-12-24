@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Request Appointment</title>
+</head>
+<body>
+
+<h2>Request Appointment</h2>
+
+<form id="appointment-form">
+  <label>
+    Date:
+    <input type="date" id="appt-date" required />
+  </label>
+  <br><br>
+
+  <label>
+    Time:
+    <input type="time" id="appt-time" required />
+  </label>
+  <br><br>
+
+  <label>
+    Notes:
+    <textarea id="appt-notes"></textarea>
+  </label>
+  <br><br>
+
+  <button type="submit">Submit</button>
+</form>
+
+<script type="module" src="/js/appointments_patient.js"></script>
+
+</body>
+</html>
