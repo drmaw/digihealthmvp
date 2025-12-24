@@ -1,0 +1,185 @@
+/* =====================================================
+   DigiHealth – Global Styles
+   Inspired by One Medical (clean, calm, professional)
+   SAFE: No logic impact
+   ===================================================== */
+
+/* ---------- CSS Reset (light) ---------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Roboto, system-ui, -apple-system, sans-serif;
+  background-color: #f4f6f8;
+  color: #1f2933;
+  line-height: 1.5;
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3 {
+  margin-top: 0;
+  color: #111827;
+}
+
+h1 {
+  font-size: 22px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+h3 {
+  font-size: 16px;
+}
+
+p {
+  margin: 8px 0;
+}
+
+/* ---------- Layout ---------- */
+header {
+  background: #0d6efd;
+  color: #ffffff;
+  padding: 14px 18px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 16px;
+}
+
+/* ---------- Sections / Cards ---------- */
+section {
+  background: #ffffff;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ---------- Navigation ---------- */
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+nav li {
+  margin: 0;
+}
+
+nav a {
+  text-decoration: none;
+  color: #0d6efd;
+  font-weight: 500;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Lists ---------- */
+ul {
+  padding-left: 18px;
+}
+
+li {
+  margin-bottom: 6px;
+}
+
+/* ---------- Buttons ---------- */
+button {
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button.primary {
+  background: #0d6efd;
+  color: #ffffff;
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+button.danger {
+  background: #dc3545;
+  color: #ffffff;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Forms ---------- */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #0d6efd;
+}
+
+/* ---------- Status / Messages ---------- */
+.status-success {
+  background: #e6f4ea;
+  color: #1e7e34;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.status-error {
+  background: #fdecea;
+  color: #b02a37;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.status-warning {
+  background: #fff4e5;
+  color: #946200;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+/* ---------- Responsive (Mobile) ---------- */
+@media (max-width: 600px) {
+
+  nav ul {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  main {
+    padding: 12px;
+  }
+
+  header h1 {
+    font-size: 18px;
+  }
+}
