@@ -1,64 +1,110 @@
 import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 import {
+  doc,
+  getDoc,
   collection,
   query,
   where,
-  getDocs,
-  orderBy
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { onAuthStateChanged } from
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const recordsBox = document.getElementById("recordsBox");
-
+/* =========================
+   AUTH ENTRY POINT
+   ========================= */
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "/index.html";
+    location.href = "/index.html";
     return;
   }
+
+  await loadProfile(user.uid);
+  await renderQR(user.uid);
   await loadMyRecords(user.uid);
 });
 
-async function loadMyRecords(uid) {
-  if (!recordsBox) return;
+/* =========================
+   PROFILE
+   ========================= */
+async function loadProfile(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return;
 
-  recordsBox.innerHTML = "Loading...";
+  const d = snap.data();
+
+  document.getElementById("pName").innerText = d.name || "—";
+  document.getElementById("pPhone").innerText = d.phone || "—";
+  document.getElementById("pHealthId").innerText = d.health_id_10 || "—";
+}
+
+/* =========================
+   QR CODE (health_id_10 ONLY)
+   ========================= */
+async function renderQR(uid) {
+  const qrBox = document.getElementById("qrBox");
+  qrBox.innerHTML = "";
+
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) {
+    qrBox.innerText = "Profile not found";
+    return;
+  }
+
+  const healthId = snap.data().health_id_10;
+  if (!healthId) {
+    qrBox.innerText = "Health ID missing";
+    return;
+  }
+
+  new QRCode(qrBox, {
+    text: healthId,
+    width: 160,
+    height: 160
+  });
+}
+
+/* =========================
+   MEDICAL RECORDS
+   ========================= */
+async function loadMyRecords(uid) {
+  const box = document.getElementById("recordsBox");
+  box.innerHTML = "";
 
   try {
     const q = query(
       collection(db, "patient_records"),
-      where("patient_uid", "==", uid),
-      orderBy("createdAt", "desc")
+      where("patient_uid", "==", uid)
     );
 
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      recordsBox.innerHTML = "<p>No medical records found.</p>";
+      box.innerHTML = "<p>No medical records found</p>";
       return;
     }
 
-    let html = "<ul>";
-
-    snap.forEach(doc => {
-      const d = doc.data();
-      html += `
-        <li>
-          <strong>Date:</strong> ${
-            d.createdAt?.toDate().toLocaleDateString() || "—"
-          }<br>
-          <strong>Note:</strong> ${d.note || "—"}
-        </li>
-        <hr>
+    snap.forEach(docu => {
+      const r = docu.data();
+      box.innerHTML += `
+        <div style="border:1px solid #ccc;padding:6px;margin-bottom:6px">
+          <div><b>Date:</b> ${r.createdAt?.toDate?.() || ""}</div>
+          <div><b>Note:</b> ${r.note || ""}</div>
+        </div>
       `;
     });
 
-    html += "</ul>";
-    recordsBox.innerHTML = html;
-
-  } catch (err) {
-    console.error(err);
-    recordsBox.innerHTML =
-      "<p style='color:red'>Failed to load records</p>";
+  } catch (e) {
+    box.innerHTML = "<p>Failed to load records</p>";
+    console.error(e);
   }
 }
+
+/* =========================
+   LOGOUT
+   ========================= */
+document.getElementById("logoutBtn").onclick = async () => {
+  await signOut(auth);
+  location.href = "/index.html";
+};
