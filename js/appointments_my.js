@@ -23,6 +23,11 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  if (!user.uid) {
+    listEl.innerHTML = "<p>Loading user…</p>";
+    return;
+  }
+
   loadMyAppointments(user.uid);
 });
 
