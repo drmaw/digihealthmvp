@@ -1,26 +1,21 @@
-import { requireAuth } from "./auth_guard.js";
 import { auth, db } from "./firebase.js";
-
 import {
   collection,
   query,
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const recordsBox = document.getElementById("recordsBox");
 
-/* =========================
-   LOAD PATIENT RECORDS
-   ========================= */
-async function loadMyRecords() {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      recordsBox.innerHTML = "<p>Not logged in.</p>";
-      return;
-    }
+async function loadMyRecords(user) {
+  if (!recordsBox) return;
 
+  recordsBox.innerHTML = "<p>Loading records...</p>";
+
+  try {
     const q = query(
       collection(db, "patient_records"),
       where("patient_uid", "==", user.uid)
@@ -34,32 +29,28 @@ async function loadMyRecords() {
     }
 
     let html = "<ul>";
+
     snap.forEach(doc => {
       const d = doc.data();
       html += `
         <li>
-          <b>Uploaded by:</b> ${d.uploader_role || "Unknown"}<br>
-          <b>Date:</b> ${
-            d.createdAt?.toDate
-              ? d.createdAt.toDate().toLocaleString()
-              : "N/A"
-          }
+          <b>Date:</b> ${d.createdAt?.toDate?.().toLocaleString() || "N/A"}
+          <br>
+          <b>Note:</b> ${d.note || "—"}
         </li>
-        <hr>
       `;
     });
-    html += "</ul>";
 
+    html += "</ul>";
     recordsBox.innerHTML = html;
+
   } catch (err) {
-    console.error("Failed to load records:", err);
+    console.error(err);
     recordsBox.innerHTML = "<p>Error loading records.</p>";
   }
 }
 
-/* =========================
-   AUTH GUARD
-   ========================= */
-requireAuth("patient", () => {
-  loadMyRecords();
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  loadMyRecords(user);
 });
