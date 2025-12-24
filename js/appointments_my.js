@@ -1,13 +1,13 @@
 // js/appointments_my.js
 // --------------------------------------------------
-// Patient appointment list + cancel
+// Patient appointment list + cancel + audit
 // --------------------------------------------------
 
 import { db } from "./firebase.js";
 import {
   initAuth,
   isPatient,
-  currentUser
+  currentUserProfile
 } from "./auth.js";
 
 import {
@@ -17,6 +17,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -39,7 +40,7 @@ async function loadMyAppointments() {
 
   const q = query(
     collection(db, "appointments"),
-    where("patient_uid", "==", currentUser.uid)
+    where("patient_uid", "==", currentUserProfile.uid)
   );
 
   const snap = await getDocs(q);
@@ -83,6 +84,16 @@ async function cancelAppointment(appointmentId) {
   await updateDoc(ref, {
     status: "cancelled",
     updated_at: serverTimestamp()
+  });
+
+  // AUDIT LOG — appointment cancelled
+  await addDoc(collection(db, "audit_logs"), {
+    actor_uid: currentUserProfile.uid,
+    actor_role: currentUserProfile.role_id,
+    action: "appointment_cancelled",
+    appointment_id: appointmentId,
+    patient_uid: currentUserProfile.uid,
+    timestamp: serverTimestamp()
   });
 
   alert("Appointment cancelled.");
