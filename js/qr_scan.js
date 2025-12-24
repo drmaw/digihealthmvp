@@ -1,64 +1,77 @@
-/* =========================================================
-   DigiHealth — QR Scan Handler
-   File: /js/qr_scan.js
-   ---------------------------------------------------------
-   • QR does NOT access Firestore directly
-   • QR only extracts identifier
-   • Actual permission checks happen later
-   ========================================================= */
+// js/qr_scan.js
+// --------------------------------------------------
+// QR scan handler (doctor / clinic / admin side)
+// Aligns exactly with qr.js payload format
+// --------------------------------------------------
 
-/*
-Expected QR payload formats:
-1) DigiHealth ID (10 digits)
-2) Mobile number (01XXXXXXXXX)
-3) JSON: { "health_id_10": "1234567890" }
-*/
+import { initAuth, isPatient } from "./auth.js";
 
-export function extractSearchKeyFromQR(raw) {
-  if (!raw) return null;
+// --------------------------------------------------
+// Expected global from scan.html:
+// function onScanSuccess(decodedText) { ... }
+// --------------------------------------------------
 
-  raw = raw.trim();
-
-  // Case 1: plain DigiHealth ID
-  if (/^\d{10}$/.test(raw)) {
-    return raw;
-  }
-
-  // Case 2: mobile number
-  if (/^01\d{9}$/.test(raw)) {
-    return raw;
-  }
-
-  // Case 3: JSON payload
+window.onScanSuccess = async function (decodedText) {
   try {
-    const obj = JSON.parse(raw);
-    if (obj.health_id_10 && /^\d{10}$/.test(obj.health_id_10)) {
-      return obj.health_id_10;
+    // ---------------------------------------------
+    // Ensure user is authenticated
+    // ---------------------------------------------
+    await initAuth(true);
+
+    // ---------------------------------------------
+    // Patients should NOT scan patient QR
+    // ---------------------------------------------
+    if (isPatient()) {
+      alert("Patients cannot scan QR codes.");
+      return;
     }
-    if (obj.mobile && /^01\d{9}$/.test(obj.mobile)) {
-      return obj.mobile;
+
+    // ---------------------------------------------
+    // Parse QR payload
+    // ---------------------------------------------
+    let payload;
+    try {
+      payload = JSON.parse(decodedText);
+    } catch (e) {
+      alert("Invalid QR code format.");
+      return;
     }
-  } catch (_) {
-    // ignore
+
+    // ---------------------------------------------
+    // Validate payload structure
+    // ---------------------------------------------
+    if (
+      !payload ||
+      payload.role !== "patient" ||
+      !payload.uid
+    ) {
+      alert("This QR code is not a valid patient QR.");
+      return;
+    }
+
+    // ---------------------------------------------
+    // Store scanned patient UID
+    // (sessionStorage = temporary, safer)
+    // ---------------------------------------------
+    sessionStorage.setItem(
+      "scanned_patient_uid",
+      payload.uid
+    );
+
+    if (payload.user_id) {
+      sessionStorage.setItem(
+        "scanned_patient_user_id",
+        payload.user_id
+      );
+    }
+
+    // ---------------------------------------------
+    // Redirect to patient record view / search
+    // ---------------------------------------------
+    window.location.href = "/records/view.html";
+
+  } catch (err) {
+    console.error("QR scan failed:", err);
+    alert("Failed to process QR. Please try again.");
   }
-
-  return null;
-}
-
-/* =========================================================
-   QR PAGE REDIRECT HELPER
-   ---------------------------------------------------------
-   Used by qr/scan.html
-   ========================================================= */
-
-export function handleQRResult(raw) {
-  const key = extractSearchKeyFromQR(raw);
-  if (!key) {
-    alert("Invalid QR code");
-    return;
-  }
-
-  // Redirect to unified search entry
-  window.location.href =
-    "/clinic/search.html?key=" + encodeURIComponent(key);
-}
+};
