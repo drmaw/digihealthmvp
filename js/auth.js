@@ -1,13 +1,6 @@
-// js/auth.js
-// --------------------------------------------------
-// Central authentication & user-profile loader
-// Beginner-readable, explicit, and safe
-// --------------------------------------------------
-
-import { auth, db } from "./firebase.js";
+import { auth } from "./firebase.js";
 import {
-  onAuthStateChanged,
-  signOut
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import {
@@ -15,95 +8,53 @@ import {
   getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --------------------------------------------------
-// Global state (simple & explicit)
-// --------------------------------------------------
-export let currentUser = null;
-export let currentUserProfile = null;
+import { db } from "./firebase.js";
 
-// --------------------------------------------------
-// Listen to auth state
-// --------------------------------------------------
-export function initAuth(required = true) {
-  return new Promise((resolve, reject) => {
+/*
+  initAuth(required)
+  - required = true → must be logged in
+  - returns user profile (Firestore)
+*/
+export async function initAuth(required = false) {
+  return new Promise((resolve) => {
     onAuthStateChanged(auth, async (user) => {
-
-      // -----------------------------
-      // Not logged in
-      // -----------------------------
       if (!user) {
-        currentUser = null;
-        currentUserProfile = null;
-
         if (required) {
           window.location.href = "/index.html";
         }
-        return resolve(null);
+        resolve(null);
+        return;
       }
 
-      // -----------------------------
-      // Logged in
-      // -----------------------------
-      currentUser = user;
-
       try {
-        const userRef = doc(db, "users", user.uid);
-        const snap = await getDoc(userRef);
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
 
-        // ---------------------------------
-        // CRITICAL SAFETY CHECK
-        // ---------------------------------
         if (!snap.exists()) {
-          alert(
-            "Your account is not fully set up yet.\n" +
-            "Please contact admin."
-          );
-          await signOut(auth);
-          window.location.href = "/index.html";
+          alert("User profile missing");
+          resolve(null);
           return;
         }
 
-        currentUserProfile = snap.data();
-        resolve(currentUserProfile);
+        const profile = snap.data();
+
+        // 🔒 SINGLE INACTIVE CHECK (ONLY PLACE)
+        if (profile.approved !== true || profile.status !== "active") {
+          alert("Account inactive");
+          resolve(null);
+          return;
+        }
+
+        // attach uid for convenience
+        profile.uid = user.uid;
+
+        resolve(profile);
 
       } catch (err) {
-        console.error("Auth init failed:", err);
-        alert("Authentication error. Please try again.");
-        await signOut(auth);
-        window.location.href = "/index.html";
+        console.error("Auth init failed", err);
+        alert("Authentication error");
+        resolve(null);
       }
     });
   });
-}
-
-// --------------------------------------------------
-// Simple role helpers (readable)
-// --------------------------------------------------
-export function hasRole(roleName) {
-  if (!currentUserProfile) return false;
-  return currentUserProfile.role_id === roleName;
-}
-
-export function isAdmin() {
-  return hasRole("admin");
-}
-
-export function isDoctor() {
-  return hasRole("doctor");
-}
-
-export function isPatient() {
-  return hasRole("patient");
-}
-
-export function isRepresentative() {
-  return hasRole("representative");
-}
-
-// --------------------------------------------------
-// Logout helper
-// --------------------------------------------------
-export async function logout() {
-  await signOut(auth);
-  window.location.href = "/index.html";
 }
