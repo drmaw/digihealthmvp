@@ -2,13 +2,9 @@ import { initAuth } from "./auth.js";
 
 (async () => {
   const profile = await initAuth(true);
-
   if (!profile) return;
 
-  if (profile.approved !== true || profile.status !== "active") {
-    alert("Account inactive");
-    return;
-  }
+  // NO inactive check here — auth.js already handled it
 
   if (profile.role_id === "patient") {
     window.location.href = "/patient.html";
