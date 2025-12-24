@@ -1,7 +1,7 @@
 // js/records_view.js
 // --------------------------------------------------
-// Patient record viewer (doctor / clinic / admin)
-// Read-only access
+// Patient record viewer
+// + audit logging
 // --------------------------------------------------
 
 import { db } from "./firebase.js";
@@ -17,24 +17,17 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  addDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// --------------------------------------------------
-// DOM
-// --------------------------------------------------
 const elName = document.getElementById("patient-name");
 const elPhone = document.getElementById("patient-phone");
 const elUserId = document.getElementById("patient-user-id");
 const elRecords = document.getElementById("records-list");
 
-// --------------------------------------------------
-// Bootstrap
-// --------------------------------------------------
 (async function start() {
-  // -----------------------------------------------
-  // Auth + role check
-  // -----------------------------------------------
   await initAuth(true);
 
   if (isPatient()) {
@@ -43,72 +36,73 @@ const elRecords = document.getElementById("records-list");
     return;
   }
 
-  // -----------------------------------------------
-  // Get scanned patient UID
-  // -----------------------------------------------
-  const patientUid =
-    sessionStorage.getItem("scanned_patient_uid");
+  const patientUid = sessionStorage.getItem("scanned_patient_uid");
 
   if (!patientUid) {
-    alert("No patient selected. Please scan a QR code.");
+    alert("No patient selected.");
     window.location.href = "/qr/scan.html";
     return;
   }
 
-  // -----------------------------------------------
-  // Load patient profile
-  // -----------------------------------------------
-  await loadPatientProfile(patientUid);
+  // -----------------------------
+  // AUDIT LOG: RECORD VIEW
+  // -----------------------------
+  await addDoc(collection(db, "audit_logs"), {
+    actor_uid: currentUserProfile.uid,
+    actor_role: currentUserProfile.role_id,
+    action: "record_view",
+    patient_uid: patientUid,
+    timestamp: serverTimestamp()
+  });
 
-  // -----------------------------------------------
-  // Load patient records
-  // -----------------------------------------------
+  await loadPatientProfile(patientUid);
   await loadPatientRecords(patientUid);
 })();
 
-// --------------------------------------------------
-// Load patient profile
-// --------------------------------------------------
 async function loadPatientProfile(patientUid) {
-  try {
-    const ref = doc(db, "users", patientUid);
-    const snap = await getDoc(ref);
+  const ref = doc(db, "users", patientUid);
+  const snap = await getDoc(ref);
 
-    if (!snap.exists()) {
-      elName.textContent = "Not found";
-      elPhone.textContent = "—";
-      elUserId.textContent = "—";
-      return;
-    }
-
-    const data = snap.data();
-
-    elName.textContent = data.name || "—";
-    elPhone.textContent = data.phone || "—";
-    elUserId.textContent = data.user_id || patientUid;
-
-  } catch (err) {
-    console.error("Failed to load patient profile:", err);
-    elName.textContent = "Error";
+  if (!snap.exists()) {
+    elName.textContent = "Not found";
+    return;
   }
+
+  const data = snap.data();
+  elName.textContent = data.name || "—";
+  elPhone.textContent = data.phone || "—";
+  elUserId.textContent = data.user_id || patientUid;
 }
 
-// --------------------------------------------------
-// Load patient medical records
-// --------------------------------------------------
 async function loadPatientRecords(patientUid) {
-  elRecords.innerHTML = "Loading records…";
+  elRecords.innerHTML = "Loading…";
 
-  try {
-    const q = query(
-      collection(db, "patient_records"),
-      where("patient_uid", "==", patientUid)
-    );
+  const q = query(
+    collection(db, "patient_records"),
+    where("patient_uid", "==", patientUid)
+  );
 
-    const snap = await getDocs(q);
+  const snap = await getDocs(q);
 
-    if (snap.empty) {
-      elRecords.innerHTML =
+  if (snap.empty) {
+    elRecords.innerHTML = "No records found.";
+    return;
+  }
+
+  elRecords.innerHTML = "";
+
+  snap.forEach(docSnap => {
+    const d = docSnap.data();
+    const div = document.createElement("div");
+    div.className = "record";
+    div.innerHTML = `
+      <div><strong>Date:</strong> ${d.date || "—"}</div>
+      <div><strong>Doctor:</strong> ${d.doctor_name || "—"}</div>
+      <div><strong>Notes:</strong> ${d.notes || "—"}</div>
+    `;
+    elRecords.appendChild(div);
+  });
+}      elRecords.innerHTML =
         "<p>No medical records found.</p>";
       return;
     }
