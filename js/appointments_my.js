@@ -1,36 +1,41 @@
-import { auth, db } from "./firebase.js";
 import {
   collection,
   query,
   where,
-  getDocs,
-  doc,
-  updateDoc,
-  serverTimestamp
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { db, auth } from "./firebase.js";
+import { initAuth, isPatient } from "./auth.js";
 
 const listEl = document.getElementById("my-list");
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
+(async function start() {
+  await initAuth(true);
+
+  if (!isPatient()) {
     window.location.href = "/index.html";
     return;
   }
 
-  // ✅ THIS WAS THE BUG
-  loadMyAppointments(user.uid);
-});
+  await loadMyAppointments();
+})();
 
-async function loadMyAppointments(uid) {
+async function loadMyAppointments() {
+  if (!listEl) return;
+
   listEl.innerHTML = "Loading…";
 
+  const user = auth.currentUser;
+  if (!user) {
+    listEl.innerHTML = "Not logged in.";
+    return;
+  }
+
+  // ✅ ALWAYS use auth UID for queries
   const q = query(
     collection(db, "appointments"),
-    where("patient_uid", "==", uid)
+    where("patient_uid", "==", user.uid)
   );
 
   const snap = await getDocs(q);
@@ -40,40 +45,17 @@ async function loadMyAppointments(uid) {
     return;
   }
 
-  listEl.innerHTML = "";
-
-  snap.forEach(docSnap => {
-    const a = docSnap.data();
-    const id = docSnap.id;
-
-    const div = document.createElement("div");
-    div.style.borderBottom = "1px solid #ccc";
-    div.style.padding = "10px";
-
-    div.innerHTML = `
-      <p><b>Date:</b> ${a.date || "-"}</p>
-      <p><b>Time:</b> ${a.time || "-"}</p>
-      <p><b>Status:</b> ${a.status || "-"}</p>
+  let html = "";
+  snap.forEach(doc => {
+    const d = doc.data();
+    html += `
+      <div class="card">
+        <b>Status:</b> ${d.status || "-"}<br>
+        <b>Date:</b> ${d.date || "-"}<br>
+        <b>Doctor:</b> ${d.doctor_name || "-"}
+      </div>
     `;
-
-    if (a.status === "requested") {
-      const btn = document.createElement("button");
-      btn.textContent = "Cancel";
-      btn.onclick = () => cancelAppointment(id);
-      div.appendChild(btn);
-    }
-
-    listEl.appendChild(div);
-  });
-}
-
-async function cancelAppointment(id) {
-  if (!confirm("Cancel this appointment?")) return;
-
-  await updateDoc(doc(db, "appointments", id), {
-    status: "cancelled",
-    updated_at: serverTimestamp()
   });
 
-  location.reload();
+  listEl.innerHTML = html;
 }
