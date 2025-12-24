@@ -2,64 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DigiHealth – QR Scan</title>
+  <title>DigiHealth — Scan Patient QR</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 16px;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
     }
-    h2 {
-      margin-bottom: 8px;
+    header {
+      background: #0d6efd;
+      color: white;
+      padding: 12px 16px;
+    }
+    main {
+      padding: 16px;
+      text-align: center;
     }
     #reader {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 16px;
+      width: 300px;
+      margin: 20px auto;
     }
-    .hint {
-      font-size: 14px;
-      color: #555;
-      margin-top: 8px;
+    a {
+      display: block;
+      margin-top: 16px;
     }
   </style>
 </head>
+
 <body>
 
-  <h2>Scan QR Code</h2>
-  <p>Point the camera at a DigiHealth QR code.</p>
+  <header>
+    <h1>Scan Patient QR</h1>
+  </header>
 
-  <div id="reader"></div>
+  <main>
+    <p>Point the camera at the patient’s QR code.</p>
+    <div id="reader"></div>
+    <a href="/index.html">Back</a>
+  </main>
 
-  <p class="hint">
-    Accepted formats:
-    <br>• 10-digit Health ID
-    <br>• Mobile number
-    <br>• JSON: {"health_id_10":"XXXXXXXXXX"}
-  </p>
+  <!-- QR Scanner library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-  <!-- QR Scanner Library -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Scan logic -->
+  <script type="module" src="/js/qr_scan.js"></script>
 
-  <!-- Your QR logic -->
-  <script type="module">
-    import { handleQRResult } from "../js/qr_scan.js";
+  <script>
+    // --------------------------------------------------
+    // Camera scanner bootstrap
+    // --------------------------------------------------
+    const html5QrCode = new Html5Qrcode("reader");
 
-    const reader = new Html5Qrcode("reader");
-
-    reader.start(
+    html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      (decodedText) => {
-        reader.stop();
-        handleQRResult(decodedText);
+      {
+        fps: 10,
+        qrbox: 250
       },
-      () => {}
-    ).catch(err => {
-      alert("Camera access failed");
-      console.error(err);
-    });
+      (decodedText) => {
+        // Stop camera immediately after success
+        html5QrCode.stop().then(() => {
+          if (window.onScanSuccess) {
+            window.onScanSuccess(decodedText);
+          }
+        });
+      },
+      (errorMessage) => {
+        // Ignore scan errors (normal behavior)
+      }
+    );
   </script>
 
 </body>
