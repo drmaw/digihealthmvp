@@ -1,103 +1,140 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Representative Upload</title>
 </head>
+
 <body>
 
 <h2>Patient Record Upload</h2>
+
 <p id="status"></p>
 
-<input id="searchInput" placeholder="Mobile or DigiHealth ID"><br><br>
+<!-- =========================
+     SEARCH PATIENT
+     ========================= -->
+<input
+  id="searchInput"
+  placeholder="Mobile or DigiHealth ID"
+  type="text"
+/>
 <button id="findBtn">Find Patient</button>
 
+<!-- =========================
+     PATIENT BOX
+     ========================= -->
 <div id="patientBox" style="display:none;">
   <p id="patientInfo"></p>
 
-  <input type="file" id="files" multiple accept="image/*"><br><br>
+  <input
+    type="file"
+    id="files"
+    multiple
+    accept="image/*,application/pdf"
+  />
+  <br /><br />
   <button id="uploadBtn">Upload Records</button>
 </div>
 
-<hr>
+<hr />
+
 <button id="logoutBtn">Logout</button>
 
+<!-- =========================
+     LOGIC
+     ========================= -->
 <script type="module">
-import { requireRole } from "/js/auth_guard.js";
-import { auth, db, storage } from "/js/firebase.js";
-import { searchUser } from "/js/search.js";
-import {
-  collection,
-  addDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { signOut } from
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { requireAuth } from "/js/auth_guard.js";
+  import { auth, db, storage } from "/js/firebase.js";
+  import { searchUser } from "/js/search.js";
+  import {
+    collection,
+    addDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import {
+    ref,
+    uploadBytes,
+    getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+  import {
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-let currentUser = null;
-let patient = null;
+  let currentUser = null;
+  let patient = null;
 
-requireRole(["representative"], (profile) => {
-  currentUser = profile;
-});
-
-findBtn.onclick = async () => {
-  status.innerText = "Searching...";
-  patientBox.style.display = "none";
-
-  patient = await searchUser(searchInput.value);
-  if (!patient) {
-    status.innerText = "Patient not found";
-    return;
-  }
-
-  patientInfo.innerText =
-    `Name: ${patient.name}\nID: ${patient.digihealth_id}`;
-
-  patientBox.style.display = "block";
-  status.innerText = "";
-};
-
-uploadBtn.onclick = async () => {
-  const files = filesInput.files;
-  if (!files.length) {
-    status.innerText = "Select at least one image";
-    return;
-  }
-
-  status.innerText = "Uploading...";
-
-  const urls = [];
-  for (const file of files) {
-    const path =
-      `records/${patient.uid}/${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    urls.push(await getDownloadURL(storageRef));
-  }
-
-  await addDoc(collection(db, "patient_records"), {
-    patient_uid: patient.uid,
-    uploaded_by: currentUser.uid,
-    uploader_role: "representative",
-    images: urls,
-    visibility: "private",
-    createdAt: serverTimestamp()
+  // --------------------------------------------------
+  // Representative-only guard
+  // --------------------------------------------------
+  requireAuth("representative", (profile) => {
+    currentUser = profile;
   });
 
-  status.innerText = "Records uploaded successfully";
-  filesInput.value = "";
-};
+  // --------------------------------------------------
+  // Find patient
+  // --------------------------------------------------
+  findBtn.onclick = async () => {
+    status.innerText = "Searching…";
+    patientBox.style.display = "none";
 
-logoutBtn.onclick = async () => {
-  await signOut(auth);
-  location.href = "/index.html";
-};
+    patient = await searchUser(searchInput.value);
+
+    if (!patient) {
+      status.innerText = "Patient not found";
+      return;
+    }
+
+    patientInfo.innerText =
+      `Name: ${patient.name}\nID: ${patient.digihealth_id}`;
+
+    patientBox.style.display = "block";
+    status.innerText = "";
+  };
+
+  // --------------------------------------------------
+  // Upload records
+  // --------------------------------------------------
+  uploadBtn.onclick = async () => {
+    const files = filesInput.files;
+
+    if (!files.length) {
+      status.innerText = "Select at least one file";
+      return;
+    }
+
+    status.innerText = "Uploading…";
+
+    const urls = [];
+
+    for (const file of files) {
+      const path = `records/${patient.uid}/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file);
+      urls.push(await getDownloadURL(storageRef));
+    }
+
+    await addDoc(collection(db, "patient_records"), {
+      patient_uid: patient.uid,
+      uploaded_by: currentUser.uid,
+      uploader_role: "representative",
+      images: urls,
+      visibility: "private",
+      created_at: serverTimestamp()
+    });
+
+    status.innerText = "Records uploaded successfully";
+    filesInput.value = "";
+  };
+
+  // --------------------------------------------------
+  // Logout
+  // --------------------------------------------------
+  logoutBtn.onclick = async () => {
+    await signOut(auth);
+    location.href = "/index.html";
+  };
 </script>
 
 </body>
