@@ -1,6 +1,6 @@
 // js/appointments_staff.js
 // --------------------------------------------------
-// Doctor / Clinic appointment list (read-only)
+// Doctor / Clinic appointment list with confirm action
 // --------------------------------------------------
 
 import { db } from "./firebase.js";
@@ -15,7 +15,10 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  doc,
+  updateDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const listEl = document.getElementById("appointments-list");
@@ -35,7 +38,6 @@ const listEl = document.getElementById("appointments-list");
 async function loadAppointments() {
   listEl.innerHTML = "Loading…";
 
-  // Pending appointments only (foundation)
   const q = query(
     collection(db, "appointments"),
     where("status", "==", "requested")
@@ -52,10 +54,15 @@ async function loadAppointments() {
 
   snap.forEach(docSnap => {
     const a = docSnap.data();
-    const div = document.createElement("div");
+    const id = docSnap.id;
 
+    const div = document.createElement("div");
     div.style.borderBottom = "1px solid #ccc";
     div.style.padding = "8px 0";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Confirm";
+    btn.onclick = () => confirmAppointment(id);
 
     div.innerHTML = `
       <div><strong>Date:</strong> ${a.date}</div>
@@ -64,6 +71,21 @@ async function loadAppointments() {
       <div><strong>Patient UID:</strong> ${a.patient_uid}</div>
     `;
 
+    div.appendChild(btn);
     listEl.appendChild(div);
   });
+}
+
+async function confirmAppointment(appointmentId) {
+  if (!confirm("Confirm this appointment?")) return;
+
+  const ref = doc(db, "appointments", appointmentId);
+
+  await updateDoc(ref, {
+    status: "confirmed",
+    updated_at: serverTimestamp()
+  });
+
+  alert("Appointment confirmed.");
+  await loadAppointments();
 }
