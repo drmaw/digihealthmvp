@@ -1,77 +1,57 @@
 // js/qr_scan.js
 // --------------------------------------------------
 // QR scan handler (doctor / clinic / admin side)
-// Aligns exactly with qr.js payload format
+// + audit logging
 // --------------------------------------------------
 
-import { initAuth, isPatient } from "./auth.js";
+import { initAuth, isPatient, currentUserProfile } from "./auth.js";
+import { db } from "./firebase.js";
 
-// --------------------------------------------------
-// Expected global from scan.html:
-// function onScanSuccess(decodedText) { ... }
-// --------------------------------------------------
+import {
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 window.onScanSuccess = async function (decodedText) {
   try {
-    // ---------------------------------------------
-    // Ensure user is authenticated
-    // ---------------------------------------------
     await initAuth(true);
 
-    // ---------------------------------------------
-    // Patients should NOT scan patient QR
-    // ---------------------------------------------
     if (isPatient()) {
       alert("Patients cannot scan QR codes.");
       return;
     }
 
-    // ---------------------------------------------
-    // Parse QR payload
-    // ---------------------------------------------
     let payload;
     try {
       payload = JSON.parse(decodedText);
-    } catch (e) {
-      alert("Invalid QR code format.");
+    } catch {
+      alert("Invalid QR code.");
       return;
     }
 
-    // ---------------------------------------------
-    // Validate payload structure
-    // ---------------------------------------------
-    if (
-      !payload ||
-      payload.role !== "patient" ||
-      !payload.uid
-    ) {
-      alert("This QR code is not a valid patient QR.");
+    if (!payload || payload.role !== "patient" || !payload.uid) {
+      alert("This QR code is not valid.");
       return;
     }
 
-    // ---------------------------------------------
-    // Store scanned patient UID
-    // (sessionStorage = temporary, safer)
-    // ---------------------------------------------
-    sessionStorage.setItem(
-      "scanned_patient_uid",
-      payload.uid
-    );
+    // -----------------------------
+    // AUDIT LOG: QR SCAN
+    // -----------------------------
+    await addDoc(collection(db, "audit_logs"), {
+      actor_uid: currentUserProfile.uid,
+      actor_role: currentUserProfile.role_id,
+      action: "qr_scan",
+      patient_uid: payload.uid,
+      timestamp: serverTimestamp()
+    });
 
-    if (payload.user_id) {
-      sessionStorage.setItem(
-        "scanned_patient_user_id",
-        payload.user_id
-      );
-    }
+    sessionStorage.setItem("scanned_patient_uid", payload.uid);
 
-    // ---------------------------------------------
-    // Redirect to patient record view / search
-    // ---------------------------------------------
     window.location.href = "/records/view.html";
 
   } catch (err) {
     console.error("QR scan failed:", err);
-    alert("Failed to process QR. Please try again.");
+    alert("Scan failed.");
   }
 };
