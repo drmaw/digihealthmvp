@@ -37,6 +37,7 @@ export async function initAuth(required = false) {
         }
 
         const profile = snap.data();
+        console.log("AUTH PROFILE:", profile);
 
         // 🔒 SINGLE INACTIVE CHECK (ONLY PLACE)
         if (profile.approved !== true || profile.status !== "active") {
