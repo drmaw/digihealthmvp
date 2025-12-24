@@ -11,7 +11,7 @@ window.login = async function () {
       await signInWithEmailAndPassword(auth, email, password);
 
     console.log("Login success:", userCredential.user.uid);
-    window.location.href = "dashboard.html";
+    window.location.href = "/loading.html";
 
   } catch (error) {
     console.error("LOGIN ERROR:", error.code, error.message);
