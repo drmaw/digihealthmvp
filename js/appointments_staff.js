@@ -1,6 +1,6 @@
 // js/appointments_staff.js
 // --------------------------------------------------
-// Doctor / Clinic appointment list with confirm action
+// Doctor / Clinic appointment list + confirm + audit
 // --------------------------------------------------
 
 import { db } from "./firebase.js";
@@ -8,7 +8,8 @@ import {
   initAuth,
   isDoctor,
   isClinicRole,
-  isAdmin
+  isAdmin,
+  currentUserProfile
 } from "./auth.js";
 
 import {
@@ -18,6 +19,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -62,7 +64,7 @@ async function loadAppointments() {
 
     const btn = document.createElement("button");
     btn.textContent = "Confirm";
-    btn.onclick = () => confirmAppointment(id);
+    btn.onclick = () => confirmAppointment(id, a.patient_uid);
 
     div.innerHTML = `
       <div><strong>Date:</strong> ${a.date}</div>
@@ -76,7 +78,7 @@ async function loadAppointments() {
   });
 }
 
-async function confirmAppointment(appointmentId) {
+async function confirmAppointment(appointmentId, patientUid) {
   if (!confirm("Confirm this appointment?")) return;
 
   const ref = doc(db, "appointments", appointmentId);
@@ -84,6 +86,16 @@ async function confirmAppointment(appointmentId) {
   await updateDoc(ref, {
     status: "confirmed",
     updated_at: serverTimestamp()
+  });
+
+  // AUDIT LOG — appointment confirmed
+  await addDoc(collection(db, "audit_logs"), {
+    actor_uid: currentUserProfile.uid,
+    actor_role: currentUserProfile.role_id,
+    action: "appointment_confirmed",
+    appointment_id: appointmentId,
+    patient_uid: patientUid,
+    timestamp: serverTimestamp()
   });
 
   alert("Appointment confirmed.");
