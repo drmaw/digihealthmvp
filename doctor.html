@@ -4,40 +4,61 @@
   <meta charset="UTF-8" />
   <title>DigiHealth — Doctor Dashboard</title>
 </head>
+
 <body>
 
 <h2>Doctor Dashboard</h2>
 
+<!-- =========================
+     PENDING APPROVAL NOTICE
+     ========================= -->
 <div id="pendingBox" style="display:none;">
-  <p>আপনার ডাক্তার অ্যাকাউন্ট এখনো অ্যাডমিন দ্বারা অনুমোদিত হয়নি।</p>
-  <p>অনুমোদন না পাওয়া পর্যন্ত আপনি রোগীর রেকর্ড দেখতে বা লিখতে পারবেন না।</p>
+  <p>আপনার ডাক্তার একাউন্টটি এখনো অনুমোদন করা হয়নি।</p>
+  <p>অনুমোদন না পাওয়া পর্যন্ত আপনি কোনো রোগীর তথ্য দেখতে বা পরিবর্তন করতে পারবেন না।</p>
 </div>
 
+<!-- =========================
+     MAIN DOCTOR CONTENT
+     ========================= -->
 <div id="doctorContent" style="display:none;">
+
+  <!-- NAVIGATION -->
   <nav>
     <ul>
-      <li><a href="/appointments/my.html">My Appointments</a></li>
-      <li><a href="/records/doctor_view.html">Search Patient Records</a></li>
+      <li>
+        <a href="/appointments/list.html">
+          Appointments
+        </a>
+      </li>
+      <li>
+        <a href="/records/doctor_view.html">
+          Search Patient Records
+        </a>
+      </li>
     </ul>
   </nav>
 
   <hr />
 
+  <!-- ORGANIZATIONS -->
   <section>
     <h3>My Organizations</h3>
-    <div id="orgList">Loading...</div>
+    <div id="orgList">Loading…</div>
   </section>
+
 </div>
 
 <hr />
 
 <button id="logoutBtn">Logout</button>
 
+<!-- =========================
+     LOGIC
+     ========================= -->
 <script type="module">
   import { requireAuth } from "/js/auth_guard.js";
   import { auth, db } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import {
     collection,
     query,
@@ -45,8 +66,10 @@
     getDocs
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // 🔐 Guard: Doctor only
-  requireAuth(["doctor"], async (profile) => {
+  // --------------------------------------------------
+  // Doctor-only guard
+  // --------------------------------------------------
+  requireAuth("doctor", async (profile) => {
 
     // If not approved yet
     if (profile.approved !== true) {
@@ -66,7 +89,7 @@
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      document.getElementById("orgList").innerText = "কোনো প্রতিষ্ঠানে যুক্ত নন";
+      document.getElementById("orgList").innerText = "কোনো ক্লিনিক পাওয়া যায়নি।";
       return;
     }
 
@@ -80,7 +103,9 @@
     document.getElementById("orgList").innerHTML = html;
   });
 
+  // --------------------------------------------------
   // Logout
+  // --------------------------------------------------
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
