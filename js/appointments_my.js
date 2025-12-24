@@ -6,18 +6,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { db, auth } from "./firebase.js";
-import { initAuth, isPatient } from "./auth.js";
+import { initAuth } from "./auth.js";
 
 const listEl = document.getElementById("my-list");
 
 (async function start() {
   await initAuth(true);
-
-  if (!isPatient()) {
-    window.location.href = "/index.html";
-    return;
-  }
-
   await loadMyAppointments();
 })();
 
@@ -27,12 +21,12 @@ async function loadMyAppointments() {
   listEl.innerHTML = "Loading…";
 
   const user = auth.currentUser;
-  if (!user) {
+  if (!user || !user.uid) {
     listEl.innerHTML = "Not logged in.";
     return;
   }
 
-  // ✅ ALWAYS use auth UID for queries
+  // 🔴 CHANGE FIELD NAME HERE IF NEEDED
   const q = query(
     collection(db, "appointments"),
     where("patient_uid", "==", user.uid)
