@@ -4,48 +4,81 @@
   <meta charset="UTF-8" />
   <title>DigiHealth — Clinic Manager Dashboard</title>
 </head>
+
 <body>
 
 <h2>Clinic Manager Dashboard</h2>
 
+<!-- =========================
+     NO ORGANIZATION NOTICE
+     ========================= -->
 <div id="noOrgBox" style="display:none;">
-  <p>আপনার সাথে কোনো প্রতিষ্ঠান যুক্ত নেই।</p>
-  <p>নতুন প্রতিষ্ঠান তৈরি করতে নিচের লিঙ্ক ব্যবহার করুন।</p>
+  <p>আপনার এখনো কোনো ক্লিনিক সংযুক্ত নেই।</p>
+  <p>শুরু করার জন্য একটি ক্লিনিক তৈরি করুন।</p>
   <a href="/organizations/create.html">Create Organization</a>
 </div>
 
+<!-- =========================
+     MAIN MANAGER CONTENT
+     ========================= -->
 <div id="managerContent" style="display:none;">
+
+  <!-- NAVIGATION -->
   <nav>
     <ul>
-      <li><a href="/organizations/dashboard.html">Organization Dashboard</a></li>
-      <li><a href="/appointments/my.html">Appointments</a></li>
-      <li><a href="/organizations/doctors.html">Doctors</a></li>
-      <li><a href="/organizations/staff.html">Staff</a></li>
+      <li>
+        <a href="/organizations/dashboard.html">
+          Organization Dashboard
+        </a>
+      </li>
+      <li>
+        <a href="/appointments/list.html">
+          Appointments
+        </a>
+      </li>
+      <li>
+        <a href="/organizations/doctors.html">
+          Doctors
+        </a>
+      </li>
+      <li>
+        <a href="/organizations/staff.html">
+          Staff
+        </a>
+      </li>
     </ul>
   </nav>
 
   <hr />
 
+  <!-- ORGANIZATION INFO -->
   <section>
     <h3>Organization Info</h3>
-    <div id="orgInfo">Loading...</div>
+    <div id="orgInfo">Loading…</div>
   </section>
+
 </div>
 
 <hr />
 
 <button id="logoutBtn">Logout</button>
 
+<!-- =========================
+     LOGIC
+     ========================= -->
 <script type="module">
   import { requireAuth } from "/js/auth_guard.js";
   import { auth, db } from "/js/firebase.js";
-  import { signOut } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { doc, getDoc } from
-    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // 🔐 Guard: Clinic Manager only
-  requireAuth(["clinic_manager"], async (profile) => {
+  // --------------------------------------------------
+  // Clinic Manager only guard
+  // --------------------------------------------------
+  requireAuth("clinic_manager", async (profile) => {
 
     // No organization yet
     if (!profile.organization_id) {
@@ -53,24 +86,31 @@
       return;
     }
 
+    // Has organization
     document.getElementById("managerContent").style.display = "block";
 
     // Load organization info
-    const snap = await getDoc(doc(db, "organizations", profile.organization_id));
+    const snap = await getDoc(
+      doc(db, "organizations", profile.organization_id)
+    );
+
     if (!snap.exists()) {
-      document.getElementById("orgInfo").innerText = "প্রতিষ্ঠান পাওয়া যায়নি";
+      document.getElementById("orgInfo").innerText = "ক্লিনিক পাওয়া যায়নি।";
       return;
     }
 
     const org = snap.data();
+
     document.getElementById("orgInfo").innerHTML = `
       <p><b>Name:</b> ${org.name}</p>
       <p><b>Status:</b> ${org.status}</p>
-      <p><b>Contact:</b> ${org.contact_phone || "-"}</p>
+      <p><b>Contact:</b> ${org.contact_phone || "—"}</p>
     `;
   });
 
+  // --------------------------------------------------
   // Logout
+  // --------------------------------------------------
   document.getElementById("logoutBtn").onclick = async () => {
     await signOut(auth);
     location.href = "/index.html";
