@@ -1,15 +1,4 @@
-// js/appointments_my.js
-// --------------------------------------------------
-// Patient appointment list + cancel + audit
-// --------------------------------------------------
-
-import { db } from "./firebase.js";
-import {
-  initAuth,
-  isPatient,
-  currentUserProfile
-} from "./auth.js";
-
+import { auth, db } from "./firebase.js";
 import {
   collection,
   query,
@@ -17,30 +6,30 @@ import {
   getDocs,
   doc,
   updateDoc,
-  addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+import { onAuthStateChanged } from
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 const listEl = document.getElementById("my-list");
 
-(async function start() {
-  await initAuth(true);
-
-  if (!isPatient()) {
-    alert("Access denied.");
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    alert("Please log in");
     window.location.href = "/index.html";
     return;
   }
 
-  await loadMyAppointments();
-})();
+  loadMyAppointments(user.uid);
+});
 
-async function loadMyAppointments() {
+async function loadMyAppointments(uid) {
   listEl.innerHTML = "Loading…";
 
   const q = query(
     collection(db, "appointments"),
-    where("patient_uid", "==", currentUserProfile.uid)
+    where("patient_uid", "==", uid)
   );
 
   const snap = await getDocs(q);
@@ -52,50 +41,39 @@ async function loadMyAppointments() {
 
   listEl.innerHTML = "";
 
-  snap.forEach(docSnap => {
-    const a = docSnap.data();
-    const id = docSnap.id;
+  snap.forEach(d => {
+    const a = d.data();
+    const id = d.id;
 
     const div = document.createElement("div");
     div.style.borderBottom = "1px solid #ccc";
-    div.style.padding = "8px 0";
-
-    const btn = document.createElement("button");
-    btn.textContent = "Cancel";
-    btn.disabled = a.status !== "requested";
-    btn.onclick = () => cancelAppointment(id);
+    div.style.padding = "8px";
 
     div.innerHTML = `
-      <div><strong>Date:</strong> ${a.date}</div>
-      <div><strong>Time:</strong> ${a.time}</div>
-      <div><strong>Status:</strong> ${a.status}</div>
+      <p><b>Date:</b> ${a.date || "-"}</p>
+      <p><b>Time:</b> ${a.time || "-"}</p>
+      <p><b>Status:</b> ${a.status}</p>
     `;
 
-    div.appendChild(btn);
+    if (a.status === "requested") {
+      const btn = document.createElement("button");
+      btn.textContent = "Cancel";
+      btn.onclick = () => cancelAppointment(id);
+      div.appendChild(btn);
+    }
+
     listEl.appendChild(div);
   });
 }
 
-async function cancelAppointment(appointmentId) {
+async function cancelAppointment(id) {
   if (!confirm("Cancel this appointment?")) return;
 
-  const ref = doc(db, "appointments", appointmentId);
-
-  await updateDoc(ref, {
+  await updateDoc(doc(db, "appointments", id), {
     status: "cancelled",
     updated_at: serverTimestamp()
   });
 
-  // AUDIT LOG — appointment cancelled
-  await addDoc(collection(db, "audit_logs"), {
-    actor_uid: currentUserProfile.uid,
-    actor_role: currentUserProfile.role_id,
-    action: "appointment_cancelled",
-    appointment_id: appointmentId,
-    patient_uid: currentUserProfile.uid,
-    timestamp: serverTimestamp()
-  });
-
-  alert("Appointment cancelled.");
-  await loadMyAppointments();
+  alert("Cancelled");
+  location.reload();
 }
