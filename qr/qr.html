@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DigiHealth — My QR Code</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #0d6efd;
+      color: white;
+      padding: 12px 16px;
+    }
+    main {
+      padding: 16px;
+      text-align: center;
+    }
+    .qr-box {
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    img {
+      margin-top: 12px;
+    }
+    a {
+      display: block;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>My QR Code</h1>
+  </header>
+
+  <main>
+    <div class="qr-box">
+      <p>Show this QR code to a doctor or clinic.</p>
+      <div id="qr-container">Loading QR…</div>
+    </div>
+
+    <a href="/patient.html">Back to Dashboard</a>
+  </main>
+
+  <script type="module" src="/js/qr.js"></script>
+</body>
+</html>
